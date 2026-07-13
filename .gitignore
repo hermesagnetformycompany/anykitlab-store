@@ -30,12 +30,33 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (commit only the placeholder template)
 .env*
+!.env.example
 
 # vercel
 .vercel
 
+# Supabase local CLI state
+/supabase/.temp/
+
+# Migrations fetched from the shared Supabase project that belong to another app
+/supabase/migrations/001_core.sql
+/supabase/migrations/002_runtime.sql
+/supabase/migrations/003_crm_prospects.sql
+
+# Local visual QA and supplied reference captures
+/admin-v2.png
+/before-home.png
+/home-pass-*.png
+/living-*.png
+/mobile-home.png
+/reference-*.png
+/shop-before.png
+/public/reference/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel

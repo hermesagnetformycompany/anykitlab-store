@@ -1,65 +1,114 @@
-import Image from "next/image";
+import Link from 'next/link';
+import {
+  BadgeCheck,
+  BriefcaseBusiness,
+  Building2,
+  CarFront,
+  Check,
+  Clock3,
+  CloudUpload,
+  Dumbbell,
+  Gauge,
+  Gem,
+  Mail,
+  Palette,
+  PencilRuler,
+  Rocket,
+  Scissors,
+  ShoppingCart,
+  Sparkles,
+  Store,
+  Utensils,
+  WalletCards,
+} from 'lucide-react';
+import {AddButton, ProductArt} from '@/components/site';
+import {money} from '@/lib/data';
+import {getCatalogData} from '@/lib/catalog';
 
-export default function Home() {
+const categoryItems = [
+  {name: 'Fitness & Wellness', slug: 'fitness', icon: Dumbbell},
+  {name: 'Beauty & Service', slug: 'beauty', icon: Scissors},
+  {name: 'Auto Detailing', slug: 'automotive', icon: CarFront},
+  {name: 'Food & Hospitality', slug: 'food', icon: Utensils},
+  {name: 'Real Estate', slug: 'real-estate', icon: Building2},
+  {name: 'Coaches & Consultants', slug: 'coaching', icon: BriefcaseBusiness},
+];
+
+const delivery = [
+  {number: '01', title: 'Choose your kit', copy: 'Browse and add your favourite kit to cart.', icon: ShoppingCart},
+  {number: '02', title: 'Pay via UPI', copy: 'Complete payment using UPI.', icon: WalletCards},
+  {number: '03', title: 'Submit reference', copy: 'Share your UPI transaction reference.', icon: CloudUpload},
+  {number: '04', title: 'We verify manually', copy: 'Our team verifies payment within 12–24 hrs.', icon: BadgeCheck},
+  {number: '05', title: 'Access your kit', copy: 'You receive access instructions by email.', icon: Mail},
+  {number: '06', title: 'Edit in Canva', copy: 'Open in Canva and customise it.', icon: Palette},
+];
+
+const faqs = ['How do I receive my kit after purchase?', 'Do I need a Canva Pro account?', 'Can I use the templates for my clients?', 'What’s your refund policy?'];
+
+export default async function Home() {
+  const {products} = await getCatalogData();
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="reference-home">
+      <section className="home-hero">
+        <div className="hero-copy">
+          <span className="hero-stamp">PRACTICAL BY DESIGN. BUILT FOR BUILDERS.</span>
+          <h1>Ready-made kits<br />for <u>anything</u> you’re<br />building.</h1>
+          <p>Canva template kits and digital launch assets for small businesses, creators, founders and service providers.</p>
+          <div className="hero-actions"><Link className="primary-action" href="/shop">Shop All Kits <span>→</span></Link><Link className="secondary-action" href="/collections/col-launch">Explore Starter Kits</Link></div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div className="hero-visual hero-visual-placeholder" aria-label="Product artwork coming soon">
+          <div className="placeholder-stack"><span><small>FITNESS</small><b>Cover<br />visual</b></span><span><small>BEAUTY</small><b>Cover<br />visual</b></span><span><small>DETAILING</small><b>Cover<br />visual</b></span></div>
+          <div className="quality-seal"><Sparkles aria-hidden="true" /><span>MADE TO EDIT<br />BUILT TO GROW</span></div>
+          <p>New product artwork is being prepared.<br />The store structure is ready for your final covers.</p>
         </div>
-      </main>
+        <div className="hero-benefits">
+          <span><PencilRuler aria-hidden="true" />Editable in Canva</span><span><BadgeCheck aria-hidden="true" />Practical & proven</span><span><Clock3 aria-hidden="true" />Saves time</span><span><Rocket aria-hidden="true" />Launch faster</span><span><Gauge aria-hidden="true" />Usable systems</span>
+        </div>
+      </section>
+
+      <section className="home-block featured-block">
+        <div className="block-heading"><h2>Featured Template Kits</h2><Link href="/shop">View all kits <span>→</span></Link></div>
+        <div className="featured-grid">
+          {products.map(product => <article className="home-product" key={product.slug}>
+            <Link className="home-product-image" href={`/products/${product.slug}`}><ProductArt p={product} /></Link>
+            <div className="home-product-copy"><Link href={`/products/${product.slug}`}><h3>{product.title}</h3></Link><span>{product.layoutCount}+ Layouts</span><strong>{money(product.price)}</strong><div><Link className="view-kit" href={`/products/${product.slug}`}>View Kit</Link><AddButton slug={product.slug} label="Add to Cart" /></div></div>
+          </article>)}
+        </div>
+      </section>
+
+      <section className="home-block category-block">
+        <div className="block-heading"><h2>Shop by Category</h2></div>
+        <div className="category-grid">
+          {categoryItems.map(category => {const Icon = category.icon; return <Link href={`/categories/${category.slug}`} key={category.slug}><span className="line-icon"><Icon aria-hidden="true" /></span><b>{category.name}</b></Link>;})}
+          <Link className="all-categories" href="/shop"><span className="line-icon"><Store aria-hidden="true" /></span><b>View all<br />categories</b></Link>
+        </div>
+      </section>
+
+      <section className="home-block collection-block">
+        <div className="block-heading"><h2>Collections</h2></div>
+        <div className="collection-grid">
+          <Link href="/shop?collection=bestsellers"><div><h3>Bestsellers</h3><p>Customer favourites that get results.</p><span>Shop Bestsellers →</span></div><div className="collection-placeholder"><BadgeCheck aria-hidden="true" /><small>BESTSELLING KITS</small></div></Link>
+          <Link href="/shop?collection=new-arrivals"><div><h3>New Arrivals</h3><p>Fresh kits to keep your brand ahead.</p><span>Shop New →</span></div><div className="collection-placeholder"><Sparkles aria-hidden="true" /><small>NEW TO THE LAB</small></div></Link>
+          <Link href="/collections/col-launch"><div><h3>Starter Kits</h3><p>Perfect for getting started and launching fast.</p><span>Explore Starters →</span></div><div className="collection-placeholder"><Rocket aria-hidden="true" /><small>STARTER SYSTEMS</small></div></Link>
+        </div>
+      </section>
+
+      <section className="home-block delivery-block" id="delivery">
+        <div className="block-heading"><h2>How delivery works</h2></div>
+        <div className="delivery-grid">
+          {delivery.map(step => {const Icon = step.icon; return <div className="delivery-step" key={step.number}><div className="step-mark"><span className="line-icon"><Icon aria-hidden="true" /></span><b>{step.number}</b></div><h3>{step.title}</h3><p>{step.copy}</p></div>;})}
+        </div>
+        <p className="delivery-note">Manual verification ensures accuracy and helps us keep prices low for you.</p>
+      </section>
+
+      <section className="value-ribbon">
+        <div><Check aria-hidden="true" /><span><strong>Complete template kits</strong><small>Everything you need in one place.</small></span></div><div><Clock3 aria-hidden="true" /><span><strong>Save hours of work</strong><small>Done-for-you systems you can customise.</small></span></div><div><Gem aria-hidden="true" /><span><strong>Professional & on-brand</strong><small>Look polished and build trust instantly.</small></span></div><div><PencilRuler aria-hidden="true" /><span><strong>Designed for real use</strong><small>Practical, editable and business-ready.</small></span></div><div><Rocket aria-hidden="true" /><span><strong>Launch with confidence</strong><small>Show up consistently and grow your brand.</small></span></div>
+      </section>
+
+      <section className="home-block social-proof">
+        <div className="testimonials"><div className="block-heading"><h2>Loved by founders & creators</h2></div><div className="testimonial-grid"><blockquote><b>★★★★★</b><p>“These templates saved me countless hours. My brand finally looks professional!”</p><footer><span>RS</span><div><strong>Riya Sharma</strong><small>Beauty Studio Owner</small></div></footer></blockquote><blockquote><b>★★★★★</b><p>“Super easy to customise in Canva. Perfect for my coaching business.”</p><footer><span>AM</span><div><strong>Arjun Mehta</strong><small>Business Coach</small></div></footer></blockquote><blockquote><b>★★★★★</b><p>“The detail is amazing. My social media game has levelled up!”</p><footer><span>KV</span><div><strong>Karan Verma</strong><small>Auto Detailing Studio</small></div></footer></blockquote></div></div>
+        <div className="faq" id="faqs"><div className="block-heading"><h2>Frequently asked questions</h2></div>{faqs.map(question => <details key={question}><summary>{question}<span>+</span></summary><p>Each kit includes clear access and editing instructions. Visit our help page for full details.</p></details>)}<Link href="/help#faqs">View all FAQs →</Link></div>
+      </section>
     </div>
   );
 }

@@ -1,0 +1,12 @@
+Font Awesome Free 6.7.2
+https://fontawesome.com
+
+Icons: CC BY 4.0
+Code: MIT License
+Fonts: SIL OFL 1.1
+
+This package contains SVG icon artwork derived from Font Awesome Free.
+Attribution: Font Awesome by Fonticons, Inc.
+Full license information: https://fontawesome.com/license/free
+
+Brand names and logos are trademarks of their respective owners. Use them in accordance with each brand's guidelines.
