@@ -67,7 +67,7 @@ export async function GET(_request: NextRequest, {params}: {params: Promise<{key
     if (key === 'media') {
       const {data, error} = await admin.from('akl_media_assets').select('*').order('created_at', {ascending: false});
       if (error) throw error;
-      return NextResponse.json({value: (data || []).map(row => ({id: row.id, name: row.name, type: row.asset_type, linkedTo: row.product_slug || 'Shared library', status: row.status, storagePath: row.storage_path}))});
+      return NextResponse.json({value: (data || []).map(row => ({id: row.id, name: row.name, type: row.asset_type, linkedTo: row.product_slug || 'Shared library', status: row.status, storagePath: row.storage_path, publicUrl: row.public_url || ''}))});
     }
 
     if (key === 'orders') {
@@ -147,7 +147,7 @@ export async function PUT(request: NextRequest, {params}: {params: Promise<{key:
       revalidatePath('/', 'layout');
     } else if (key === 'media') {
       const value = Array.isArray(body.value) ? body.value as Record<string, unknown>[] : [];
-      const rows = value.map(item => ({id: String(item.id), name: String(item.name), asset_type: String(item.type), product_slug: item.linkedTo && item.linkedTo !== 'Unassigned' && item.linkedTo !== 'Shared library' ? String(item.linkedTo) : null, storage_path: String(item.storagePath || ''), status: String(item.status)}));
+      const rows = value.map(item => ({id: String(item.id), name: String(item.name), asset_type: String(item.type), product_slug: item.linkedTo && item.linkedTo !== 'Unassigned' && item.linkedTo !== 'Shared library' ? String(item.linkedTo) : null, storage_path: String(item.storagePath || ''), public_url: String(item.publicUrl || ''), status: String(item.status)}));
       const {data: current} = await admin.from('akl_media_assets').select('id');
       if (rows.length) { const {error} = await admin.from('akl_media_assets').upsert(rows); if (error) throw error; }
       await removeMissing('akl_media_assets', (current || []).map(item => item.id), rows.map(item => item.id));
