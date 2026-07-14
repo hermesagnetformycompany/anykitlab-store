@@ -44,6 +44,7 @@ type ProductRow = {
   formats: string[];
   includes: string[];
   updated_at: string;
+  cover_url: string | null;
 };
 
 export type CatalogData = {
@@ -66,7 +67,7 @@ export async function getCatalogData(): Promise<CatalogData> {
     const [categoryResult, collectionResult, productResult] = await Promise.all([
       supabase.from('akl_categories').select('id,slug,name,description,status,product_count').order('name'),
       supabase.from('akl_collections').select('id,name,description,status,category_ids').order('name'),
-      supabase.from('akl_products').select('id,slug,title,category_id,collection_id,price,mrp,layout_count,description,long_description,accent,dark,badge,status,formats,includes,updated_at').order('created_at'),
+      supabase.from('akl_products').select('id,slug,title,category_id,collection_id,price,mrp,layout_count,description,long_description,accent,dark,badge,status,formats,includes,updated_at,cover_url').order('created_at'),
     ]);
 
     const error = categoryResult.error || collectionResult.error || productResult.error;
@@ -108,6 +109,7 @@ export async function getCatalogData(): Promise<CatalogData> {
       formats: row.formats || [],
       includes: row.includes || [],
       updatedAt: formatDate(row.updated_at),
+      coverUrl: row.cover_url || undefined,
     }));
 
     if (!categories.length || !products.length) throw new Error('Supabase catalog is empty.');
