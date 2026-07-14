@@ -1,6 +1,15 @@
+import type {Metadata} from 'next';
 import {Sparkles} from 'lucide-react';
 import {CatalogBrowser} from '@/components/catalog-browser';
 import {getCatalogData} from '@/lib/catalog';
+import {buildMetadata} from '@/lib/seo';
+
+export const metadata: Metadata = buildMetadata({
+  title: 'Shop All Kits',
+  description: 'Browse professionally designed Canva template kits for creators, founders and small businesses. Filter by category, collection, format and price.',
+  path: '/shop',
+  keywords: ['shop template kits', 'Canva templates', 'buy templates', 'digital templates'],
+});
 
 type ShopSearchParams = Promise<{q?: string; collection?: string; sort?: string}>;
 

@@ -1,0 +1,11 @@
+User-Agent: *
+Allow: /
+Disallow: /cart
+Disallow: /checkout
+Disallow: /login
+Disallow: /register
+Disallow: /account
+Disallow: /admin
+
+Sitemap: https://anykitlab-store.vercel.app/sitemap.xml
+Host: https://anykitlab-store.vercel.app

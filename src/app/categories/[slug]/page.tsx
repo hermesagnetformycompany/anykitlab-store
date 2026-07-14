@@ -1,3 +1,4 @@
+import type {Metadata} from 'next';
 import Link from 'next/link';
 import {notFound} from 'next/navigation';
 import type {LucideIcon} from 'lucide-react';
@@ -17,9 +18,22 @@ import {
 import {CatalogBrowser} from '@/components/catalog-browser';
 import {categories as staticCategories} from '@/lib/data';
 import {getCatalogData} from '@/lib/catalog';
+import {buildMetadata, breadcrumbJsonLd, SITE_URL} from '@/lib/seo';
 
 export function generateStaticParams() {
   return staticCategories.map(category => ({slug: category.slug}));
+}
+
+export async function generateMetadata({params}: {params: Promise<{slug: string}>}): Promise<Metadata> {
+  const {slug} = await params;
+  const category = staticCategories.find(c => c.slug === slug);
+  if (!category) return buildMetadata({title: 'Category Not Found', path: `/categories/${slug}`, noIndex: true});
+  return buildMetadata({
+    title: `${category.name} Templates`,
+    description: category.description,
+    path: `/categories/${slug}`,
+    keywords: [category.name, 'Canva templates', 'template kits', category.slug],
+  });
 }
 
 type CategoryPresentation = {
@@ -94,9 +108,15 @@ export default async function CategoryPage({params}: {params: Promise<{slug: str
   const items = products.filter(product => product.categoryId === category.id && product.status === 'Published');
   const layoutTotal = items.reduce((total, product) => total + product.layoutCount, 0);
   const CategoryIcon = presentation.icon;
+  const categoryBreadcrumbs = breadcrumbJsonLd([
+    {name: 'Home', url: SITE_URL},
+    {name: 'Categories', url: `${SITE_URL}/shop`},
+    {name: category.name, url: `${SITE_URL}/categories/${slug}`},
+  ]);
 
   return (
     <div className="category-page">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(categoryBreadcrumbs)}} />
       <div className="breadcrumbs"><Link href="/">Home</Link><b>›</b><Link href="/shop">Categories</Link><b>›</b><span>{category.name}</span></div>
       <section className="category-hero">
         <div className="category-hero-copy">

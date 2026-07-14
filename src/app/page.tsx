@@ -1,3 +1,4 @@
+import type {Metadata} from 'next';
 import Link from 'next/link';
 import {
   BadgeCheck,
@@ -24,6 +25,14 @@ import {
 import {AddButton, ProductArt} from '@/components/site';
 import {money} from '@/lib/data';
 import {getCatalogData} from '@/lib/catalog';
+import {buildMetadata, organizationJsonLd, websiteJsonLd, faqJsonLd} from '@/lib/seo';
+
+export const metadata: Metadata = buildMetadata({
+  title: undefined,
+  description: 'Canva template kits and digital launch assets for small businesses, creators, founders and service providers.',
+  path: '/',
+  keywords: ['Canva templates', 'template kits', 'Instagram templates', 'digital products', 'small business templates'],
+});
 
 const categoryItems = [
   {name: 'Fitness & Wellness', slug: 'fitness', icon: Dumbbell},
@@ -43,12 +52,25 @@ const delivery = [
   {number: '06', title: 'Edit in Canva', copy: 'Open in Canva and customise it.', icon: Palette},
 ];
 
-const faqs = ['How do I receive my kit after purchase?', 'Do I need a Canva Pro account?', 'Can I use the templates for my clients?', 'What’s your refund policy?'];
+const faqs: [string, string][] = [
+  ['How do I receive my kit after purchase?', 'Once payment is verified, access appears in your customer account and you receive a delivery confirmation by email.'],
+  ['Do I need a Canva Pro account?', 'No. Every included layout is designed to work with a free Canva account unless a kit clearly says otherwise.'],
+  ['Can I use the templates for my clients?', 'Yes. You can use and adapt the templates for your own business as often as you like. Resale, sharing or redistribution of the template files is not permitted.'],
+  ['What’s your refund policy?', 'Because digital products cannot be returned, purchases are generally final. If a file is faulty or inaccessible, contact support and we will make it right.'],
+];
 
 export default async function Home() {
   const {products} = await getCatalogData();
+  const homeFaqs = [
+    {question: 'How do I receive my kit after purchase?', answer: 'Once payment is verified, access appears in your customer account and you receive a delivery confirmation by email.'},
+    {question: 'Do I need a Canva Pro account?', answer: 'No. Every included layout is designed to work with a free Canva account unless a kit clearly says otherwise.'},
+    {question: 'Can I use the templates for my clients?', answer: 'Yes. Use and adapt the templates for your own business as often as you like. Resale, sharing or redistribution is not permitted.'},
+    {question: 'What\u2019s your refund policy?', answer: 'Because digital products cannot be returned, purchases are generally final. If a file is faulty or inaccessible, contact support and we will make it right.'},
+  ];
+  const structuredData = [organizationJsonLd(), websiteJsonLd(), faqJsonLd(homeFaqs)];
   return (
     <div className="reference-home">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(structuredData)}} />
       <section className="home-hero">
         <div className="hero-copy">
           <span className="hero-stamp">PRACTICAL BY DESIGN. BUILT FOR BUILDERS.</span>
@@ -105,9 +127,8 @@ export default async function Home() {
         <div><Check aria-hidden="true" /><span><strong>Complete template kits</strong><small>Everything you need in one place.</small></span></div><div><Clock3 aria-hidden="true" /><span><strong>Save hours of work</strong><small>Done-for-you systems you can customise.</small></span></div><div><Gem aria-hidden="true" /><span><strong>Professional & on-brand</strong><small>Look polished and build trust instantly.</small></span></div><div><PencilRuler aria-hidden="true" /><span><strong>Designed for real use</strong><small>Practical, editable and business-ready.</small></span></div><div><Rocket aria-hidden="true" /><span><strong>Launch with confidence</strong><small>Show up consistently and grow your brand.</small></span></div>
       </section>
 
-      <section className="home-block social-proof">
-        <div className="testimonials"><div className="block-heading"><h2>Loved by founders & creators</h2></div><div className="testimonial-grid"><blockquote><b>★★★★★</b><p>“These templates saved me countless hours. My brand finally looks professional!”</p><footer><span>RS</span><div><strong>Riya Sharma</strong><small>Beauty Studio Owner</small></div></footer></blockquote><blockquote><b>★★★★★</b><p>“Super easy to customise in Canva. Perfect for my coaching business.”</p><footer><span>AM</span><div><strong>Arjun Mehta</strong><small>Business Coach</small></div></footer></blockquote><blockquote><b>★★★★★</b><p>“The detail is amazing. My social media game has levelled up!”</p><footer><span>KV</span><div><strong>Karan Verma</strong><small>Auto Detailing Studio</small></div></footer></blockquote></div></div>
-        <div className="faq" id="faqs"><div className="block-heading"><h2>Frequently asked questions</h2></div>{faqs.map(question => <details key={question}><summary>{question}<span>+</span></summary><p>Each kit includes clear access and editing instructions. Visit our help page for full details.</p></details>)}<Link href="/help#faqs">View all FAQs →</Link></div>
+      <section className="home-block">
+        <div className="faq" id="faqs"><div className="block-heading"><h2>Frequently asked questions</h2></div>{faqs.map(([question, answer]) => <details key={question}><summary>{question}<span>+</span></summary><p>{answer}</p></details>)}<Link href="/help#faqs">View all FAQs →</Link></div>
       </section>
     </div>
   );

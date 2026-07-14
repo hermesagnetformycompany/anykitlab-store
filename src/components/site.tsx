@@ -205,7 +205,7 @@ const footerGroups = [
   ['Account', [['Account Overview', '/account'], ['My Orders', '/account/orders'], ['My Kits', '/account/kits'], ['Profile Details', '/account/profile']]],
   ['Delivery', [['How Delivery Works', '/help#delivery'], ['Payment & Verification', '/help#payments'], ['Access & Download', '/account/downloads']]],
   ['Support', [['Contact Us', '/help#contact'], ['FAQs', '/help#faqs'], ['How to Use', '/help'], ['Request a Kit', '/help#contact']]],
-  ['Legal', [['Terms of Use', '/help'], ['Privacy Policy', '/help'], ['Refund Policy', '/help']]],
+  ['Legal', [['Terms of Use', '/terms'], ['Privacy Policy', '/privacy'], ['Refund Policy', '/refunds']]],
 ] as const;
 
 function Footer() {
@@ -219,9 +219,9 @@ function Footer() {
           <BrandLockup showTagline={false} />
           <p>Practical template kits and launch assets for small businesses, creators, founders and service providers.</p>
           <div className="social-links" aria-label="Social links">
-            <a className="instagram" href="https://www.instagram.com/" target="_blank" rel="noreferrer" aria-label="Instagram" title="Follow AnyKit Lab on Instagram"><FooterIcon name="instagram" /><span>Instagram</span></a>
-            <a className="youtube" href="https://www.youtube.com/" target="_blank" rel="noreferrer" aria-label="YouTube" title="Watch AnyKit Lab on YouTube"><FooterIcon name="youtube" /><span>YouTube</span></a>
-            <a className="pinterest" href="https://www.pinterest.com/" target="_blank" rel="noreferrer" aria-label="Pinterest" title="Browse AnyKit Lab on Pinterest"><FooterIcon name="pinterest" /><span>Pinterest</span></a>
+            <a className="instagram" href="https://www.instagram.com/anykitlab" target="_blank" rel="noreferrer" aria-label="Instagram" title="Follow AnyKit Lab on Instagram"><FooterIcon name="instagram" /><span>Instagram</span></a>
+            <a className="youtube" href="https://www.youtube.com/@anykitlab" target="_blank" rel="noreferrer" aria-label="YouTube" title="Watch AnyKit Lab on YouTube"><FooterIcon name="youtube" /><span>YouTube</span></a>
+            <a className="pinterest" href="https://www.pinterest.com/anykitlab" target="_blank" rel="noreferrer" aria-label="Pinterest" title="Browse AnyKit Lab on Pinterest"><FooterIcon name="pinterest" /><span>Pinterest</span></a>
             <a className="email" href="mailto:support@anykitlab.com" aria-label="Email AnyKit Lab" title="Email AnyKit Lab"><FooterIcon name="email" /><span>Email</span></a>
           </div>
         </div>
@@ -238,7 +238,7 @@ function Footer() {
 }
 
 export function AppShell({children}: {children: React.ReactNode}) {
-  return <StoreProvider><Header /><main id="main-content">{children}</main><Footer /></StoreProvider>;
+  return <StoreProvider><a className="skip-link" href="#main-content">Skip to content</a><Header /><main id="main-content">{children}</main><Footer /></StoreProvider>;
 }
 
 export function ProductArt({p, large = false, compact = false}: {p: Product; large?: boolean; compact?: boolean}) {

@@ -1,12 +1,26 @@
+import type {Metadata} from 'next';
 import Link from 'next/link';
 import {notFound} from 'next/navigation';
 import {Layers3, Sparkles} from 'lucide-react';
 import {ProductCard} from '@/components/site';
 import {collections as staticCollections} from '@/lib/data';
 import {getCatalogData} from '@/lib/catalog';
+import {buildMetadata, breadcrumbJsonLd, SITE_URL} from '@/lib/seo';
 
 export function generateStaticParams() {
   return staticCollections.map(collection => ({id: collection.id}));
+}
+
+export async function generateMetadata({params}: {params: Promise<{id: string}>}): Promise<Metadata> {
+  const {id} = await params;
+  const collection = staticCollections.find(c => c.id === id);
+  if (!collection) return buildMetadata({title: 'Collection Not Found', path: `/collections/${id}`, noIndex: true});
+  return buildMetadata({
+    title: collection.name,
+    description: collection.description,
+    path: `/collections/${id}`,
+    keywords: [collection.name, 'template collection', 'Canva templates', 'template kits'],
+  });
 }
 
 export default async function CollectionPage({params}: {params: Promise<{id: string}>}) {
@@ -16,9 +30,15 @@ export default async function CollectionPage({params}: {params: Promise<{id: str
   if (!collection) notFound();
   const items = products.filter(product => product.collectionId === collection.id);
   const displayItems = id === 'col-social' ? products : items;
+  const collectionBreadcrumbs = breadcrumbJsonLd([
+    {name: 'Home', url: SITE_URL},
+    {name: 'Collections', url: `${SITE_URL}/shop`},
+    {name: collection.name, url: `${SITE_URL}/collections/${id}`},
+  ]);
 
   return (
     <div className="collection-page">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(collectionBreadcrumbs)}} />
       <div className="breadcrumbs"><span>Home</span><b>›</b><span>Collections</span><b>›</b><span>{collection.name}</span></div>
       <section className="collection-hero">
         <div>

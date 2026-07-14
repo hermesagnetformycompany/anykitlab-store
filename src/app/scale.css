@@ -140,7 +140,7 @@
 .social-links a.instagram { background: #e4405f; }
 .social-links a.youtube { background: #ff0000; }
 .social-links a.pinterest { background: #bd081c; }
-.social-links a.email { background: var(--ak-orange); }
+.social-links a.email { background: var(--orange); }
 .social-links a:hover,
 .social-links a:focus-visible { color: #fff; filter: brightness(.88); transform: translateY(-2px); }
 .social-links svg { width: 17px; height: 17px; }
@@ -281,7 +281,7 @@
   .delivery-grid { grid-template-columns: repeat(2, 1fr); row-gap: 48px; }
   .delivery-step p { max-width: 145px; font-size: 12px; }
   .value-ribbon { grid-template-columns: 1fr; padding: 18px; }
-  .value-ribbon > div { min-height: 58px; border-bottom: 1px solid var(--ak-line); }
+  .value-ribbon > div { min-height: 58px; border-bottom: 1px solid var(--line); }
   .testimonial-grid { display: grid; grid-template-columns: 1fr; overflow: visible; }
   .testimonial-grid blockquote { flex: none; min-height: 0; }
   .store-footer { padding-inline: 18px; }
@@ -312,3 +312,7 @@
   .store-footer .store-footer-inner { grid-template-columns: 1fr; }
   .footer-brand { grid-column: auto; }
 }
+
+/* Readable product tabs */
+.product-details-tabs > nav[role="tablist"] > button[role="tab"] { font-size: 14px; min-height: 44px; }
+.product-details-tabs > nav[role="tablist"] { gap: 24px; }

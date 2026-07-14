@@ -1,4 +1,13 @@
+import type {Metadata} from 'next';
 import {PageHead} from '@/components/site';
+import {buildMetadata, faqJsonLd, breadcrumbJsonLd, SITE_URL} from '@/lib/seo';
+
+export const metadata: Metadata = buildMetadata({
+  title: 'Help Centre',
+  description: 'Answers to common questions about delivery, payments, Canva templates, refunds and more. Get support for your AnyKit Lab purchases.',
+  path: '/help',
+  keywords: ['help', 'FAQ', 'support', 'template delivery', 'refund policy'],
+});
 
 const faqs = [
   ['When will I receive my templates?', 'Once payment is verified, access appears in your customer account and you receive a delivery confirmation.'],
@@ -9,8 +18,16 @@ const faqs = [
 ];
 
 export default function Help() {
+  const structuredData = [
+    breadcrumbJsonLd([
+      {name: 'Home', url: SITE_URL},
+      {name: 'Help Centre', url: `${SITE_URL}/help`},
+    ]),
+    faqJsonLd(faqs.map(([question, answer]) => ({question, answer}))),
+  ];
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(structuredData)}} />
       <PageHead eyebrow="HELP CENTRE" title="Questions, answered." copy="Everything you need to know before and after choosing your kit." />
       <section className="help-sections">
         <article id="delivery"><span>01</span><div><h2>How delivery works</h2><p>Choose a kit, complete payment, submit the transaction reference and wait for manual verification. Approved products then appear under Downloads & Access in your customer account.</p></div></article>

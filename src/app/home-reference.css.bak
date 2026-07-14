@@ -1,7 +1,13 @@
-/* Design tokens are consolidated in globals.css (:root).
-   This file previously declared --ak-* aliases; all references now use
-   the canonical --ink, --orange, --line, --muted, --soft, --paper,
-   --paper-strong variables directly. */
+:root {
+  --ak-bg: #fbf8f1;
+  --ak-surface: #fffdf8;
+  --ak-ink: #1b1a17;
+  --ak-muted: #615d56;
+  --ak-orange: #e95717;
+  --ak-orange-dark: #c9470f;
+  --ak-line: #d9d1c5;
+  --ak-soft: #f0ebe1;
+}
 
 main {
   min-height: calc(100vh - 199px);
@@ -19,9 +25,9 @@ main {
   position: sticky;
   top: 0;
   z-index: 50;
-  color: var(--ink);
+  color: var(--ak-ink);
   background: rgba(251, 248, 241, 0.97);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--ak-line);
   backdrop-filter: blur(12px);
 }
 
@@ -38,7 +44,7 @@ main {
 }
 
 .brand-name {
-  color: var(--ink);
+  color: var(--ak-ink);
   font: 700 25px/0.92 Georgia, "Times New Roman", serif;
   letter-spacing: -0.055em;
   white-space: nowrap;
@@ -46,7 +52,7 @@ main {
 
 .brand-name sup {
   margin-left: 2px;
-  color: var(--orange);
+  color: var(--ak-orange);
   font-size: 15px;
   line-height: 0;
   vertical-align: top;
@@ -69,7 +75,7 @@ main {
 .store-header > nav > a,
 .store-nav-item > button,
 .store-actions a {
-  color: var(--ink);
+  color: var(--ak-ink);
   font-size: 10px;
   font-weight: 750;
   white-space: nowrap;
@@ -80,7 +86,7 @@ main {
 .store-nav-item > button:hover,
 .store-nav-item.open > button,
 .store-actions a:hover {
-  color: var(--orange);
+  color: var(--ak-orange);
 }
 
 .store-header > nav > a,
@@ -124,9 +130,9 @@ main {
   z-index: 70;
   width: 360px;
   padding: 14px;
-  border: 1px solid var(--line);
-  border-top: 2px solid var(--orange);
-  background: var(--paper-strong);
+  border: 1px solid var(--ak-line);
+  border-top: 2px solid var(--ak-orange);
+  background: var(--ak-surface);
   box-shadow: 0 14px 35px rgba(36, 31, 24, 0.14);
   opacity: 0;
   visibility: hidden;
@@ -151,7 +157,7 @@ main {
 .store-dropdown > small {
   display: block;
   margin-bottom: 9px;
-  color: var(--orange);
+  color: var(--ak-orange);
   font: 700 7px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -175,8 +181,8 @@ main {
 
 .store-dropdown a:hover,
 .store-dropdown a:focus-visible {
-  border-color: var(--line);
-  color: var(--orange);
+  border-color: var(--ak-line);
+  color: var(--ak-orange);
   background: #fff7f1;
 }
 
@@ -187,7 +193,7 @@ main {
 
 .store-dropdown a small {
   overflow: hidden;
-  color: var(--muted);
+  color: var(--ak-muted);
   font-size: 6px;
   font-weight: 500;
   line-height: 1.35;
@@ -210,7 +216,7 @@ main {
   padding: 0 10px;
   border: 0;
   outline: 0;
-  color: var(--ink);
+  color: var(--ak-ink);
   background: transparent;
   font-size: 9px;
 }
@@ -258,7 +264,7 @@ main {
   height: 15px;
   padding: 0 3px;
   border-radius: 999px;
-  background: var(--orange);
+  background: var(--ak-orange);
   color: white;
   display: grid;
   place-items: center;
@@ -269,14 +275,14 @@ main {
   display: none;
   border: 0;
   padding: 7px;
-  color: var(--ink);
+  color: var(--ak-ink);
   background: transparent;
   cursor: pointer;
 }
 
 .reference-home {
-  color: var(--ink);
-  background-color: var(--paper);
+  color: var(--ak-ink);
+  background-color: var(--ak-bg);
   background-image:
     linear-gradient(rgba(53, 47, 38, 0.016) 1px, transparent 1px),
     linear-gradient(90deg, rgba(53, 47, 38, 0.016) 1px, transparent 1px);
@@ -287,7 +293,7 @@ main {
 .reference-home h1,
 .reference-home h2,
 .reference-home h3 {
-  color: var(--ink);
+  color: var(--ak-ink);
   font-family: Georgia, "Times New Roman", serif;
   text-wrap: balance;
 }
@@ -303,7 +309,7 @@ main {
   display: grid;
   grid-template-columns: minmax(340px, 0.82fr) minmax(500px, 1.18fr);
   column-gap: clamp(20px, 3.2vw, 42px);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--ak-line);
 }
 
 .hero-copy {
@@ -314,8 +320,8 @@ main {
 .hero-stamp {
   display: inline-block;
   padding: 7px 11px;
-  border: 1px solid var(--orange);
-  color: var(--orange);
+  border: 1px solid var(--ak-orange);
+  color: var(--ak-orange);
   font: 700 8px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
   letter-spacing: 0.09em;
   transform: rotate(-1deg);
@@ -330,7 +336,7 @@ main {
 }
 
 .hero-copy h1 u {
-  text-decoration-color: var(--orange);
+  text-decoration-color: var(--ak-orange);
   text-decoration-thickness: 2px;
   text-underline-offset: 6px;
 }
@@ -370,14 +376,14 @@ main {
 .primary-action {
   gap: 14px;
   color: white;
-  background: var(--orange);
-  border: 1px solid var(--orange);
+  background: var(--ak-orange);
+  border: 1px solid var(--ak-orange);
 }
 
 .secondary-action {
-  color: var(--orange);
+  color: var(--ak-orange);
   background: rgba(255, 253, 248, 0.45);
-  border: 1px solid var(--orange);
+  border: 1px solid var(--ak-orange);
 }
 
 .primary-action:hover,
@@ -443,7 +449,7 @@ main {
 
 .placeholder-stack > span:nth-child(2) {
   height: 96%;
-  color: var(--ink);
+  color: var(--ak-ink);
   background: #f1c9c3;
   transform: translateY(-3px);
 }
@@ -521,7 +527,7 @@ main {
 .quality-seal svg {
   width: 20px;
   height: 20px;
-  color: var(--orange);
+  color: var(--ak-orange);
   justify-self: center;
 }
 
@@ -533,7 +539,7 @@ main {
 .hero-benefits {
   grid-column: 1 / -1;
   min-height: 47px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--ak-line);
   display: grid;
   grid-template-columns: repeat(5, 1fr);
 }
@@ -557,7 +563,7 @@ main {
   max-width: 1500px;
   margin: 0 auto;
   padding: 11px clamp(34px, 4.5vw, 58px);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--ak-line);
 }
 
 .block-heading {
@@ -582,11 +588,11 @@ main {
   bottom: -5px;
   width: 31px;
   height: 2px;
-  background: var(--orange);
+  background: var(--ak-orange);
 }
 
 .block-heading > a {
-  color: var(--ink);
+  color: var(--ak-ink);
   font-size: 9px;
   font-weight: 750;
 }
@@ -605,7 +611,7 @@ main {
 .home-product {
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--line);
+  border: 1px solid var(--ak-line);
   border-radius: 5px;
   background: rgba(255, 253, 248, 0.78);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
@@ -645,7 +651,7 @@ main {
 .home-product-copy > span {
   display: block;
   margin-bottom: 3px;
-  color: var(--muted);
+  color: var(--ak-muted);
   font-size: 6.5px;
 }
 
@@ -667,16 +673,16 @@ main {
   height: 24px;
   padding: 0 4px;
   border: 1px solid #bcb5aa;
-  color: var(--ink);
+  color: var(--ak-ink);
   background: transparent;
   font-size: 6.5px;
   letter-spacing: 0;
 }
 
 .home-product .kit-btn {
-  border-color: var(--orange);
+  border-color: var(--ak-orange);
   color: white;
-  background: var(--orange);
+  background: var(--ak-orange);
 }
 
 .category-block {
@@ -693,7 +699,7 @@ main {
 .category-grid > a {
   min-height: 54px;
   padding: 7px 9px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--ak-line);
   border-radius: 5px;
   background: rgba(255, 253, 248, 0.6);
   display: flex;
@@ -702,7 +708,7 @@ main {
 }
 
 .category-grid > a:hover {
-  border-color: var(--orange);
+  border-color: var(--ak-orange);
 }
 
 .category-grid b {
@@ -728,7 +734,7 @@ main {
 
 .all-categories .line-icon {
   border-style: dashed;
-  color: var(--orange);
+  color: var(--ak-orange);
 }
 
 .collection-block {
@@ -746,7 +752,7 @@ main {
   min-width: 0;
   height: 82px;
   overflow: hidden;
-  border: 1px solid var(--line);
+  border: 1px solid var(--ak-line);
   border-radius: 5px;
   background: rgba(255, 253, 248, 0.62);
   display: grid;
@@ -772,7 +778,7 @@ main {
 }
 
 .collection-grid span {
-  color: var(--orange);
+  color: var(--ak-orange);
   font-size: 6.5px;
   font-weight: 800;
 }
@@ -781,7 +787,7 @@ main {
   width: 100%;
   height: 100%;
   padding: 8px !important;
-  border-left: 1px solid var(--line);
+  border-left: 1px solid var(--ak-line);
   background-image: linear-gradient(135deg, rgba(233, 87, 23, 0.08), rgba(233, 87, 23, 0.01));
   display: grid;
   place-content: center;
@@ -792,12 +798,12 @@ main {
 .collection-placeholder svg {
   width: 25px;
   height: 25px;
-  color: var(--orange);
+  color: var(--ak-orange);
   stroke-width: 1.5;
 }
 
 .collection-placeholder small {
-  color: var(--muted);
+  color: var(--ak-muted);
   font: 700 5px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace;
   letter-spacing: 0.08em;
   text-align: center;
@@ -821,7 +827,7 @@ main {
   left: 8%;
   right: 8%;
   top: 28px;
-  border-top: 1px dashed var(--orange);
+  border-top: 1px dashed var(--ak-orange);
 }
 
 .delivery-step {
@@ -837,7 +843,7 @@ main {
   height: 51px;
   margin: 0 auto;
   border-radius: 50%;
-  background: var(--soft);
+  background: var(--ak-soft);
   display: grid;
   place-items: center;
 }
@@ -850,7 +856,7 @@ main {
 .step-mark > b {
   position: absolute;
   bottom: -8px;
-  color: var(--orange);
+  color: var(--ak-orange);
   font-size: 8px;
 }
 
@@ -958,13 +964,13 @@ main {
   min-height: 112px;
   margin: 0;
   padding: 10px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--ak-line);
   border-radius: 5px;
   background: rgba(255, 253, 248, 0.62);
 }
 
 .testimonial-grid blockquote > b {
-  color: var(--orange);
+  color: var(--ak-orange);
   font-size: 8px;
   letter-spacing: 1px;
 }
@@ -984,7 +990,7 @@ main {
   height: auto;
   margin: 0;
   padding: 0;
-  color: var(--ink);
+  color: var(--ak-ink);
   background: transparent;
   display: flex;
   align-items: center;
@@ -1012,7 +1018,7 @@ main {
 }
 
 .testimonial-grid footer small {
-  color: var(--muted);
+  color: var(--ak-muted);
   font-size: 5.5px;
 }
 
@@ -1026,7 +1032,7 @@ main {
   height: auto;
   padding: 0;
   border: 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--ak-line);
   background: transparent;
   box-shadow: none;
 }
@@ -1048,7 +1054,7 @@ main {
 .social-proof .faq details p {
   margin: 0;
   padding: 0 12px 8px 1px;
-  color: var(--muted);
+  color: var(--ak-muted);
   font-size: 6px;
   line-height: 1.45;
 }
@@ -1066,8 +1072,8 @@ main {
   width: auto;
   margin: 0;
   padding: 15px clamp(34px, 5vw, 64px) 9px;
-  border-top: 1px solid var(--line);
-  color: var(--ink);
+  border-top: 1px solid var(--ak-line);
+  color: var(--ak-ink);
   background: #f2ede3;
   display: block;
 }
@@ -1096,7 +1102,7 @@ main {
   display: flex;
   flex-direction: row;
   gap: 9px;
-  color: var(--ink);
+  color: var(--ak-ink);
 }
 
 .social-links a {
@@ -1111,9 +1117,9 @@ main {
 
 .social-links a:hover,
 .social-links a:focus-visible {
-  border-color: var(--orange);
+  border-color: var(--ak-orange);
   color: white;
-  background: var(--orange);
+  background: var(--ak-orange);
 }
 
 .social-links svg {
@@ -1132,7 +1138,7 @@ main {
 
 .store-footer .footer-group > b {
   margin-bottom: 2px;
-  color: var(--ink);
+  color: var(--ak-ink);
   font-family: Georgia, serif;
   font-size: 7.5px;
 }
@@ -1143,7 +1149,7 @@ main {
 }
 
 .store-footer .footer-group a:hover {
-  color: var(--orange);
+  color: var(--ak-orange);
 }
 
 .footer-copy {
@@ -1211,7 +1217,7 @@ main {
     padding: 0 16px;
     grid-template-columns: 1fr auto;
     gap: 8px;
-    background: var(--paper);
+    background: var(--ak-bg);
     backdrop-filter: none;
   }
 
@@ -1230,8 +1236,8 @@ main {
     left: 0;
     right: 0;
     padding: 10px 16px 15px;
-    border-bottom: 1px solid var(--line);
-    background: var(--paper);
+    border-bottom: 1px solid var(--ak-line);
+    background: var(--ak-bg);
     flex-direction: column;
     align-items: flex-start;
     gap: 0;
@@ -1245,7 +1251,7 @@ main {
   .store-nav-item > button {
     width: 100%;
     padding: 11px 2px;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--ak-line);
     justify-content: space-between;
     font-size: 11px;
   }
@@ -1265,7 +1271,7 @@ main {
     width: 100% !important;
     padding: 8px 0 10px;
     border: 0;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--ak-line);
     background: transparent;
     box-shadow: none;
     display: none;
