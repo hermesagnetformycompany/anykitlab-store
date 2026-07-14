@@ -58,14 +58,22 @@ const navigation: Record<MenuName, {label: string; intro: string; items: NavItem
   },
 };
 
-export function BrandLockup({showTagline = true, variant = 'dark'}: {showTagline?: boolean; variant?: 'dark' | 'light'}) {
-  const src = variant === 'light'
+export function BrandLockup({showTagline = true, variant = 'dark', preload = false}: {showTagline?: boolean; variant?: 'dark' | 'light'; preload?: boolean}) {
+  const wordmarkSrc = variant === 'light'
     ? '/assets/logos/anykitlab-wordmark-light.svg'
     : '/assets/logos/anykitlab-wordmark-dark.svg';
+  const logoSrc = variant === 'light'
+    ? '/assets/logos/anykitlab-logo-dark-background.svg'
+    : '/assets/logos/anykitlab-logo-light-background.svg';
 
   return (
     <span className={`brand-lockup brand-lockup-${variant}`} aria-label="AnyKit Lab">
-      <Image className="brand-logo" src={src} width={220} height={48} alt="AnyKit Lab" priority unoptimized />
+      <span className="brand-artwork">
+        <span className="brand-symbol" aria-hidden="true">
+          <Image className="brand-symbol-source" src={logoSrc} width={72} height={72} alt="" preload={preload} unoptimized />
+        </span>
+        <Image className="brand-logo" src={wordmarkSrc} width={220} height={48} alt="AnyKit Lab" preload={preload} unoptimized />
+      </span>
       {showTagline && <small>TOOLS TO BUILD. KITS TO LAUNCH.</small>}
     </span>
   );
@@ -132,7 +140,7 @@ function Header() {
   return (
     <header className="store-header" ref={headerRef}>
       <Link href="/" className="store-brand" aria-label="AnyKit Lab home" onClick={closeNavigation}>
-        <BrandLockup />
+        <BrandLockup preload />
       </Link>
       <nav className={mobileOpen ? 'open' : ''} aria-label="Main navigation">
         <Link className={path === '/shop' ? 'active' : ''} href="/shop" onClick={closeNavigation}>Shop All</Link>

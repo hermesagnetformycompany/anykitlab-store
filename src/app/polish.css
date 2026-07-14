@@ -9,11 +9,27 @@ body::-webkit-scrollbar,
 *::-webkit-scrollbar { width: 0; height: 0; display: none; }
 
 .brand-lockup { gap: 3px; }
-.brand-logo { display: block; width: 178px; height: auto; }
+.brand-artwork { display: inline-flex; align-items: center; gap: 8px; }
+.brand-symbol {
+  position: relative;
+  width: 44px;
+  height: 42px;
+  flex: 0 0 44px;
+  overflow: hidden;
+}
+.brand-symbol-source {
+  position: absolute;
+  top: -2px;
+  left: -14px;
+  width: 72px;
+  height: 72px;
+  max-width: none;
+}
+.brand-logo { display: block; width: 145px; height: auto; }
 .brand-lockup small { padding-left: 2px; }
 .brand-lockup-light small { color: #f7f2e8; }
-.footer-brand .brand-logo { width: 176px; }
-.admin-v3-brand .brand-logo { width: 174px; }
+.footer-brand .brand-logo { width: 140px; }
+.admin-v3-brand .brand-logo { width: 138px; }
 
 .store-actions .customer-profile-link { gap: 9px; }
 .customer-avatar {
@@ -236,7 +252,10 @@ body::-webkit-scrollbar,
 }
 
 @media (max-width: 760px) {
-  .brand-logo { width: 148px; }
+  .brand-artwork { gap: 6px; }
+  .brand-symbol { width: 37px; height: 36px; flex-basis: 37px; }
+  .brand-symbol-source { top: -2px; left: -12px; width: 61px; height: 61px; }
+  .brand-logo { width: 118px; }
   .store-actions > .customer-profile-link { display: flex; }
   .store-actions .customer-profile-link .customer-avatar { display: grid; }
   .store-actions .customer-profile-link .customer-identity { display: none; }
