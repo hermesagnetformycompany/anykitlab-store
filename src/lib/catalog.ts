@@ -112,7 +112,7 @@ export async function getCatalogData(): Promise<CatalogData> {
       coverUrl: row.cover_url || undefined,
     }));
 
-    if (!categories.length || !products.length) throw new Error('Supabase catalog is empty.');
+    if (!categories.length && !products.length) throw new Error('Supabase catalog is empty.');
     return {products, categories, collections, source: 'supabase'};
   } catch (error) {
     console.error('Supabase catalog fallback:', error instanceof Error ? error.message : error);

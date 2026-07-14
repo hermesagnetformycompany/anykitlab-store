@@ -292,51 +292,8 @@ create policy "akl delivery files entitled read" on storage.objects for select t
 );
 create policy "akl delivery files admin write" on storage.objects for all to authenticated using (bucket_id = 'akl-deliveries' and public.akl_is_admin()) with check (bucket_id = 'akl-deliveries' and public.akl_is_admin());
 
-insert into public.akl_categories (id, slug, name, description, status, product_count) values
-  ('cat-fitness', 'fitness', 'Fitness & Wellness', 'For gyms, coaches, trainers and wellness brands.', 'Active', 1),
-  ('cat-beauty', 'beauty', 'Beauty & Service', 'For beauty professionals, studios and appointment-led businesses.', 'Active', 1),
-  ('cat-auto', 'automotive', 'Auto Detailing', 'For detailing studios, garages and automotive specialists.', 'Active', 1),
-  ('cat-food', 'food', 'Food & Hospitality', 'For cafés, restaurants and food-led brands.', 'Active', 1),
-  ('cat-realestate', 'real-estate', 'Real Estate', 'For agents, brokers and property businesses.', 'Active', 1),
-  ('cat-coaching', 'coaching', 'Coaches & Consultants', 'For coaches, consultants and service-led experts.', 'Active', 1)
-on conflict (id) do update set slug = excluded.slug, name = excluded.name, description = excluded.description, status = excluded.status, product_count = excluded.product_count;
-
-insert into public.akl_collections (id, name, description, status, category_ids) values
-  ('col-social', 'Instagram Growth Kits', 'Complete feed, carousel and story systems.', 'Published', array['cat-fitness','cat-beauty','cat-auto']),
-  ('col-launch', 'Launch & Offer Kits', 'Campaign-oriented layouts for new services and offers.', 'Draft', array['cat-fitness','cat-beauty'])
-on conflict (id) do update set name = excluded.name, description = excluded.description, status = excluded.status, category_ids = excluded.category_ids;
-
-insert into public.akl_products (id, slug, title, category_id, collection_id, price, mrp, layout_count, description, long_description, accent, dark, badge, status, formats, includes, delivery_name, updated_at) values
-  ('tpl-001', 'gym-fitness-instagram-templates', 'Gym & Fitness Instagram Templates', 'cat-fitness', 'col-social', 799, 1499, 100, 'High-energy posts, stories and carousels for trainers and gyms.', 'A complete social kit designed to make fitness brands look focused, credible and ready to move. Every layout is fully editable in Canva.', '#b8ff64', '#111712', 'BESTSELLER', 'Published', array['Square posts','Stories','Carousels','Offer slides'], array['60 feed posts','24 story layouts','16 carousel slides','Caption prompt sheet'], 'fitness-delivery.zip', '2026-07-10T00:00:00Z'),
-  ('tpl-002', 'lash-tech-instagram-templates', 'Lash Tech Instagram Templates', 'cat-beauty', 'col-social', 699, 1299, 80, 'Polished booking, aftercare and offer graphics for lash artists.', 'A refined content system for independent lash artists and beauty studios. Swap your colours, imagery and copy with no design experience required.', '#f4b9d1', '#291a24', 'NEW', 'Published', array['Square posts','Stories','Price cards','Highlight covers'], array['48 feed posts','20 story layouts','12 price & policy cards','Highlight cover set'], '', '2026-07-08T00:00:00Z'),
-  ('tpl-003', 'the-detail-authority', 'The Detail Authority Canva Kit', 'cat-auto', 'col-social', 699, 1599, 70, 'Premium visual content built for serious detailing studios.', 'Turn meticulous craft into a premium presence. This bold kit gives detailing studios a confident, consistent look across every campaign.', '#81b7ff', '#101820', 'PRO KIT', 'Published', array['Square posts','Stories','Service menus','Before/after'], array['40 feed posts','18 story layouts','8 service menus','4 before/after frames'], '', '2026-07-05T00:00:00Z'),
-  ('tpl-004', 'real-estate-social-media-kit', 'Real Estate Social Media Kit', 'cat-realestate', 'col-social', 699, 1299, 80, 'Property posts, listings and launch graphics for real estate professionals.', 'A complete Canva content kit for agents, brokers and property teams who need polished listings and consistent social media.', '#8aa3b0', '#15252d', 'POPULAR', 'Published', array['Property posts','Stories','Listing cards','Agent profiles'], array['48 feed posts','20 story layouts','8 listing cards','4 agent profiles'], '', '2026-07-12T00:00:00Z'),
-  ('tpl-005', 'food-restaurant-social-media-kit', 'Food & Restaurant Social Media Kit', 'cat-food', 'col-social', 499, 999, 90, 'Menus, offers and food-first social templates for hospitality brands.', 'A warm and appetising Canva system for cafés, restaurants and food businesses that want a consistent feed.', '#e6a84a', '#2d2117', 'NEW', 'Published', array['Food posts','Stories','Menu cards','Offer layouts'], array['52 feed posts','24 story layouts','8 menu cards','6 offer layouts'], '', '2026-07-12T00:00:00Z'),
-  ('tpl-006', 'coaches-consultants-business-kit', 'Coaches & Consultants Business Kit', 'cat-coaching', 'col-launch', 699, 1299, 90, 'Authority-building posts, offers and lead magnets for service experts.', 'A focused Canva content system for coaches and consultants who want to explain their value and launch offers clearly.', '#c98c5c', '#181716', 'STARTER', 'Published', array['Authority posts','Stories','Offer cards','Lead magnets'], array['54 feed posts','20 story layouts','10 offer cards','6 lead magnet covers'], '', '2026-07-12T00:00:00Z')
-on conflict (id) do update set
-  slug = excluded.slug,
-  title = excluded.title,
-  category_id = excluded.category_id,
-  collection_id = excluded.collection_id,
-  price = excluded.price,
-  mrp = excluded.mrp,
-  layout_count = excluded.layout_count,
-  description = excluded.description,
-  long_description = excluded.long_description,
-  accent = excluded.accent,
-  dark = excluded.dark,
-  badge = excluded.badge,
-  status = excluded.status,
-  formats = excluded.formats,
-  includes = excluded.includes;
-
-insert into public.akl_media_assets (id, name, asset_type, product_slug, status) values
-  ('med-001', 'fitness-cover.webp', 'Cover', 'gym-fitness-instagram-templates', 'Ready'),
-  ('med-002', 'fitness-feed-preview.webp', 'Preview', 'gym-fitness-instagram-templates', 'Ready'),
-  ('med-003', 'lash-cover.webp', 'Cover', 'lash-tech-instagram-templates', 'Ready'),
-  ('med-004', 'detail-authority-cover.webp', 'Cover', 'the-detail-authority', 'Ready'),
-  ('med-005', 'fitness-delivery.zip', 'Delivery', 'gym-fitness-instagram-templates', 'Ready')
-on conflict (id) do update set name = excluded.name, asset_type = excluded.asset_type, product_slug = excluded.product_slug, status = excluded.status;
+-- Seed data removed — admin creates categories, collections, and products from the dashboard.
+-- All demo data has been purged by migration 20260715000004_remove_demo_data.sql.
 
 insert into public.akl_site_settings (id, store_name, support_email, upi_id, verification_sla, sender_name)
 values ('storefront', 'AnyKit Lab', 'hello@anykitlab.com', 'anykitlab@upi', '12–24 hours', 'AnyKit Lab Delivery')

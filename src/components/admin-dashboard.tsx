@@ -37,11 +37,7 @@ import {FormEvent, useEffect, useRef, useState} from 'react';
 import {BrandLockup} from '@/components/site';
 import {canAccessAdminTab, defaultAdminTeam, readAdminSession, type AdminRole, type AdminTeamMember} from '@/lib/admin-auth';
 import {
-  categories as seedCategories,
-  collections as seedCollections,
-  mediaAssets as seedMedia,
   money,
-  products,
   type Category,
   type Collection,
   type Product,
@@ -68,20 +64,9 @@ const adminTabs: {label: AdminTab; icon: typeof LayoutDashboard}[] = [
   {label: 'Settings', icon: Settings},
 ];
 
-const initialTemplates: AdminTemplate[] = products.map(product => ({
-  ...product,
-  coverName: '',
-  coverUrl: product.coverUrl || '',
-  deliveryName: product.slug === 'gym-fitness-instagram-templates' ? 'fitness-delivery.zip' : '',
-}));
+const initialTemplates: AdminTemplate[] = [];
 
-const initialMedia: AdminMedia[] = seedMedia.map(asset => ({
-  id: asset.id,
-  name: asset.name,
-  type: asset.type,
-  linkedTo: asset.productSlug || 'Shared library',
-  status: asset.status,
-}));
+const initialMedia: AdminMedia[] = [];
 
 const initialSettings: StoreSettings = {
   storeName: 'AnyKit Lab',
@@ -165,8 +150,8 @@ export function AdminDashboard() {
   const [tab, setTab] = useState<AdminTab>('Overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [templates, setTemplates] = useAdminState<AdminTemplate[]>('templates', initialTemplates);
-  const [categories, setCategories] = useAdminState<Category[]>('categories', seedCategories);
-  const [collections, setCollections] = useAdminState<Collection[]>('collections', seedCollections);
+  const [categories, setCategories] = useAdminState<Category[]>('categories', []);
+  const [collections, setCollections] = useAdminState<Collection[]>('collections', []);
   const [media, setMedia] = useAdminState<AdminMedia[]>('media', initialMedia);
   const [orders, setOrders] = useAdminState<AdminOrder[]>('orders', []);
   const [team, setTeam] = useAdminState<AdminTeamMember[]>('team', defaultAdminTeam);
