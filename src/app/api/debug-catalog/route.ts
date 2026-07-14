@@ -5,19 +5,17 @@ export async function GET() {
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   const hasConfig = Boolean(url && key);
 
-  if (!hasConfig) {
+  if (!hasConfig || !url || !key) {
     return NextResponse.json({
       error: 'Missing env vars',
       hasUrl: Boolean(url),
       hasKey: Boolean(key),
-      urlPrefix: url ? url.substring(0, 30) + '...' : null,
-      keyPrefix: key ? key.substring(0, 20) + '...' : null,
     });
   }
 
   try {
     const {createClient} = await import('@supabase/supabase-js');
-    const supabase = createClient(url, key, {
+    const supabase = createClient(url!, key!, {
       auth: {autoRefreshToken: false, persistSession: false},
     });
 
