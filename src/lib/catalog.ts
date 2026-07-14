@@ -112,7 +112,8 @@ export async function getCatalogData(): Promise<CatalogData> {
       coverUrl: row.cover_url || undefined,
     }));
 
-    if (!categories.length && !products.length) throw new Error('Supabase catalog is empty.');
+    // Return Supabase data even if empty — admin may not have created items yet.
+    // Only fall back to hardcoded data if Supabase itself is unreachable (caught below).
     return {products, categories, collections, source: 'supabase'};
   } catch (error) {
     console.error('Supabase catalog fallback:', error instanceof Error ? error.message : error);
