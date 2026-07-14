@@ -1,7 +1,7 @@
 export type Category={id:string;slug:string;name:string;description:string;status:'Active'|'Hidden';productCount:number};
 export type Collection={id:string;name:string;description:string;status:'Published'|'Draft';categoryIds:string[]};
 export type MediaAsset={id:string;name:string;type:'Cover'|'Preview'|'Video'|'Delivery';productSlug?:string;status:'Ready'|'Processing'};
-export type Product={id:string;slug:string;title:string;categoryId:string;category:string;collectionId:string;price:number;mrp:number;layoutCount:number;count:string;description:string;long:string;accent:string;dark:string;badge:string;status:'Published'|'Draft'|'Archived';formats:string[];includes:string[];updatedAt:string};
+export type Product={id:string;slug:string;title:string;categoryId:string;category:string;collectionId:string;price:number;mrp:number;layoutCount:number;count:string;description:string;long:string;accent:string;dark:string;badge:string;status:'Published'|'Draft'|'Archived';formats:string[];includes:string[];updatedAt:string;coverUrl?:string;previewUrl?:string};
 
 export const categories:Category[]=[
 {id:'cat-fitness',slug:'fitness',name:'Fitness & Wellness',description:'For gyms, coaches, trainers and wellness brands.',status:'Active',productCount:1},

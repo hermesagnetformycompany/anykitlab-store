@@ -49,7 +49,7 @@ import {
 import {getSupabaseBrowserClient} from '@/lib/supabase/client';
 
 type AdminTab = 'Overview' | 'Orders' | 'Templates' | 'Categories' | 'Collections' | 'Media' | 'Customers' | 'Team' | 'Reports' | 'Settings';
-type AdminTemplate = Product & {coverName: string; deliveryName: string};
+type AdminTemplate = Product & {coverName: string; deliveryName: string; coverUrl?: string};
 type AdminMedia = {id: string; name: string; type: 'Cover' | 'Preview' | 'Video' | 'Delivery'; linkedTo: string; status: 'Ready' | 'Processing'; storagePath?: string};
 type AdminOrderStatus = 'Pending verification' | 'Verified' | 'Access sent' | 'Rejected';
 type AdminOrder = {id: string; date: string; name: string; email: string; total: number; reference: string; items: number; status: AdminOrderStatus};
@@ -71,6 +71,7 @@ const adminTabs: {label: AdminTab; icon: typeof LayoutDashboard}[] = [
 const initialTemplates: AdminTemplate[] = products.map(product => ({
   ...product,
   coverName: '',
+  coverUrl: product.coverUrl || '',
   deliveryName: product.slug === 'gym-fitness-instagram-templates' ? 'fitness-delivery.zip' : '',
 }));
 
@@ -94,9 +95,12 @@ async function uploadAdminAsset(file: File, type: AdminMedia['type']) {
   const safeName = file.name.toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
   const storagePath = `catalog/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
   const bucket = type === 'Delivery' ? 'akl-deliveries' : 'akl-previews';
-  const {error} = await getSupabaseBrowserClient().storage.from(bucket).upload(storagePath, file, {upsert: false});
+  const supabase = getSupabaseBrowserClient();
+  const {error} = await supabase.storage.from(bucket).upload(storagePath, file, {upsert: false});
   if (error) throw error;
-  return storagePath;
+  // Get the public URL for cover/preview images so they show on the storefront
+  const {data: publicUrlData} = supabase.storage.from(bucket).getPublicUrl(storagePath);
+  return {storagePath, publicUrl: publicUrlData.publicUrl};
 }
 
 function useAdminState<T>(key: string, initialValue: T) {
@@ -209,9 +213,14 @@ export function AdminDashboard() {
     const slug = current?.slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     let coverName = current?.coverName || '';
     let deliveryName = current?.deliveryName || '';
+    let coverUrl = current?.coverUrl || '';
     try {
-      if (cover?.size) coverName = await uploadAdminAsset(cover, 'Cover');
-      if (delivery?.size) deliveryName = await uploadAdminAsset(delivery, 'Delivery');
+      if (cover?.size) {
+        const result = await uploadAdminAsset(cover, 'Cover');
+        coverName = result.storagePath;
+        coverUrl = result.publicUrl;
+      }
+      if (delivery?.size) deliveryName = (await uploadAdminAsset(delivery, 'Delivery')).storagePath;
     } catch (error) {
       setToast(error instanceof Error ? error.message : 'Asset upload failed.');
       return;
@@ -234,6 +243,7 @@ export function AdminDashboard() {
       badge: String(form.get('badge')).trim() || 'NEW',
       coverName,
       deliveryName,
+      coverUrl,
       updatedAt: new Date().toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'}),
     };
     setTemplates(currentTemplates => current ? currentTemplates.map(template => template.id === current.id ? nextTemplate : template) : [nextTemplate, ...currentTemplates]);
@@ -286,7 +296,8 @@ export function AdminDashboard() {
     try {
       const additions = await Promise.all(Array.from(files).map(async (file, index): Promise<AdminMedia> => {
         const type: AdminMedia['type'] = file.name.toLowerCase().endsWith('.zip') || file.type === 'application/pdf' ? 'Delivery' : file.type.startsWith('video/') ? 'Video' : 'Cover';
-        return {id: `med-${Date.now()}-${index}`, name: file.name, type, linkedTo: 'Unassigned', status: 'Ready', storagePath: await uploadAdminAsset(file, type)};
+        const result = await uploadAdminAsset(file, type);
+        return {id: `med-${Date.now()}-${index}`, name: file.name, type, linkedTo: 'Unassigned', status: 'Ready', storagePath: result.storagePath};
       }));
       setMedia(current => [...additions, ...current]);
       setToast(`${additions.length} asset${additions.length === 1 ? '' : 's'} uploaded to Supabase.`);
@@ -442,7 +453,7 @@ function SettingsView({settings, onSave}: {settings: StoreSettings; onSave: (eve
 }
 
 function TemplateEditor({template, categories, collections, onClose, onSave}: {template: AdminTemplate | null; categories: Category[]; collections: Collection[]; onClose: () => void; onSave: (event: FormEvent<HTMLFormElement>) => void}) {
-  return <div className="admin-drawer-backdrop" role="presentation"><section className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="template-editor-title"><header><div><span>TEMPLATE CATALOG</span><h2 id="template-editor-title">{template ? 'Edit template' : 'Add a new template'}</h2></div><button type="button" onClick={onClose} aria-label="Close template editor"><X aria-hidden="true" /></button></header><form className="template-editor-form" onSubmit={onSave}><label className="wide">Template title<input required name="title" defaultValue={template?.title} /></label><label>Category<select required name="categoryId" defaultValue={template?.categoryId || categories[0]?.id}>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><label>Collection<select required name="collectionId" defaultValue={template?.collectionId || collections[0]?.id}>{collections.map(collection => <option key={collection.id} value={collection.id}>{collection.name}</option>)}</select></label><label>Price<input required name="price" type="number" min="0" defaultValue={template?.price || 699} /></label><label>Compare-at price<input required name="mrp" type="number" min="0" defaultValue={template?.mrp || 1299} /></label><label>Layouts<input required name="layoutCount" type="number" min="1" defaultValue={template?.layoutCount || 60} /></label><label>Status<select name="status" defaultValue={template?.status || 'Draft'}><option>Draft</option><option>Published</option><option>Archived</option></select></label><label className="wide">Badge<input name="badge" defaultValue={template?.badge || 'NEW'} /></label><label className="wide">Short description<textarea required name="description" rows={5} defaultValue={template?.description} /></label><label className="file-field"><ImageIcon aria-hidden="true" /><span><b>Cover visual</b><small>{template?.coverName || 'No cover uploaded yet'}</small></span><input name="cover" type="file" accept="image/*" /></label><label className="file-field"><FileArchive aria-hidden="true" /><span><b>Delivery file</b><small>{template?.deliveryName || 'No delivery file uploaded yet'}</small></span><input name="delivery" type="file" accept=".zip,.pdf" /></label><footer><button type="button" onClick={onClose}>Cancel</button><button className="admin-primary" type="submit"><Save aria-hidden="true" />{template ? 'Save changes' : 'Create template'}</button></footer></form></section></div>;
+  return <div className="admin-drawer-backdrop" role="presentation"><section className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="template-editor-title"><header><div><span>TEMPLATE CATALOG</span><h2 id="template-editor-title">{template ? 'Edit template' : 'Add a new template'}</h2></div><button type="button" onClick={onClose} aria-label="Close template editor"><X aria-hidden="true" /></button></header><form className="template-editor-form" onSubmit={onSave}><label className="wide">Template title<input required name="title" defaultValue={template?.title} /></label><label>Category<select required name="categoryId" defaultValue={template?.categoryId || categories[0]?.id}>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><label>Collection<select required name="collectionId" defaultValue={template?.collectionId || collections[0]?.id}>{collections.map(collection => <option key={collection.id} value={collection.id}>{collection.name}</option>)}</select></label><label>Price<input required name="price" type="number" min="0" defaultValue={template?.price || 699} /></label><label>Compare-at price<input required name="mrp" type="number" min="0" defaultValue={template?.mrp || 1299} /></label><label>Layouts<input required name="layoutCount" type="number" min="1" defaultValue={template?.layoutCount || 60} /></label><label>Status<select name="status" defaultValue={template?.status || 'Draft'}><option>Draft</option><option>Published</option><option>Archived</option></select></label><label className="wide">Badge<input name="badge" defaultValue={template?.badge || 'NEW'} /></label><label className="wide">Short description<textarea required name="description" rows={5} defaultValue={template?.description} /></label><label className="file-field"><ImageIcon aria-hidden="true" /><span><b>Cover visual</b><small>{template?.coverName || 'No cover uploaded yet'}</small>{template?.coverUrl && <img src={template.coverUrl} alt="Current cover" style={{width: '100%', maxHeight: '120px', objectFit: 'cover', borderRadius: '4px', marginTop: '6px'}} />}</span><input name="cover" type="file" accept="image/*" /></label><label className="file-field"><FileArchive aria-hidden="true" /><span><b>Delivery file</b><small>{template?.deliveryName || 'No delivery file uploaded yet'}</small></span><input name="delivery" type="file" accept=".zip,.pdf" /></label><footer><button type="button" onClick={onClose}>Cancel</button><button className="admin-primary" type="submit"><Save aria-hidden="true" />{template ? 'Save changes' : 'Create template'}</button></footer></form></section></div>;
 }
 
 function OrderDrawer({order, onClose, onUpdate}: {order: AdminOrder; onClose: () => void; onUpdate: (id: string, status: AdminOrderStatus) => void}) {

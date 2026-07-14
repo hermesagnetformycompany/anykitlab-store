@@ -48,6 +48,7 @@ export async function GET(_request: NextRequest, {params}: {params: Promise<{key
         badge: row.badge, status: row.status, formats: row.formats || [], includes: row.includes || [],
         updatedAt: new Date(row.updated_at).toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'}),
         coverName: row.cover_name || '', deliveryName: row.delivery_name || '',
+        coverUrl: row.cover_url || '',
       }))});
     }
 
@@ -124,6 +125,7 @@ export async function PUT(request: NextRequest, {params}: {params: Promise<{key:
         accent: String(item.accent || '#f0642f'), dark: String(item.dark || '#191917'), badge: String(item.badge || ''),
         status: String(item.status), formats: Array.isArray(item.formats) ? item.formats : [], includes: Array.isArray(item.includes) ? item.includes : [],
         cover_name: String(item.coverName || ''), delivery_name: String(item.deliveryName || ''),
+        cover_url: String(item.coverUrl || ''),
       }));
       const {data: current} = await admin.from('akl_products').select('id');
       if (rows.length) { const {error} = await admin.from('akl_products').upsert(rows); if (error) throw error; }

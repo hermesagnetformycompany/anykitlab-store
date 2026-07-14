@@ -242,6 +242,21 @@ export function AppShell({children}: {children: React.ReactNode}) {
 }
 
 export function ProductArt({p, large = false, compact = false}: {p: Product; large?: boolean; compact?: boolean}) {
+  if (p.coverUrl) {
+    return (
+      <div
+        className={`reference-art product-image ${large ? 'large' : ''} ${compact ? 'compact' : ''}`}
+        style={{'--product-accent': p.accent, '--product-dark': p.dark} as React.CSSProperties}
+      >
+        <img
+          src={p.coverUrl}
+          alt={p.title}
+          loading="lazy"
+          style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit'}}
+        />
+      </div>
+    );
+  }
   return (
     <div
       className={`reference-art product-placeholder ${large ? 'large' : ''} ${compact ? 'compact' : ''}`}
