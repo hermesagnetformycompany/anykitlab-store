@@ -37,6 +37,7 @@ type ProductRow = {
   layout_count: number;
   description: string;
   long_description: string;
+  cover_url: string | null;
   accent: string;
   dark: string;
   badge: string;
@@ -66,7 +67,7 @@ export async function getCatalogData(): Promise<CatalogData> {
     const [categoryResult, collectionResult, productResult] = await Promise.all([
       supabase.from('akl_categories').select('id,slug,name,description,status,product_count').order('name'),
       supabase.from('akl_collections').select('id,name,description,status,category_ids').order('name'),
-      supabase.from('akl_products').select('id,slug,title,category_id,collection_id,price,mrp,layout_count,description,long_description,accent,dark,badge,status,formats,includes,updated_at').order('created_at'),
+      supabase.from('akl_products').select('id,slug,title,category_id,collection_id,price,mrp,layout_count,description,long_description,cover_url,accent,dark,badge,status,formats,includes,updated_at').order('created_at'),
     ]);
 
     const error = categoryResult.error || collectionResult.error || productResult.error;
@@ -101,6 +102,7 @@ export async function getCatalogData(): Promise<CatalogData> {
       count: `${row.layout_count}+ layouts`,
       description: row.description,
       long: row.long_description,
+      coverUrl: row.cover_url || undefined,
       accent: row.accent,
       dark: row.dark,
       badge: row.badge,
