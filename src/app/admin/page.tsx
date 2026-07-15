@@ -1,4 +1,5 @@
 import {AdminDashboard} from '@/components/admin-dashboard';
+import {AdminCatalogTools} from '@/components/admin-catalog-tools';
 import {redirect} from 'next/navigation';
 import {getSupabaseServerClient} from '@/lib/supabase/server';
 import {toAdminRole} from '@/lib/admin-auth';
@@ -10,6 +11,7 @@ export default async function AdminPage() {
   const {data: {user}} = await supabase.auth.getUser();
   if (!user) redirect('/admin/login');
   const {data: profile} = await supabase.from('akl_profiles').select('role,status').eq('id', user.id).maybeSingle();
-  if (!profile || profile.status !== 'active' || !toAdminRole(profile.role)) redirect('/admin/login');
-  return <AdminDashboard />;
+  const role = profile ? toAdminRole(profile.role) : null;
+  if (!profile || profile.status !== 'active' || !role) redirect('/admin/login');
+  return <><AdminDashboard />{(role === 'Owner' || role === 'Catalog manager') && <AdminCatalogTools />}</>;
 }
