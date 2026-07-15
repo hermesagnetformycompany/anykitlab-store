@@ -80,7 +80,7 @@ export default async function ProductPage({params}: {params: Promise<{slug: stri
         {
           id: 'description',
           label: 'Description',
-          content: <div className="product-description"><div><p>Take your brand to the next level with this premium collection of editable templates.</p><p>Designed for creators, personal trainers, fitness studios and wellness brands, these templates help you:</p><ul><li>Attract more followers and new clients</li><li>Promote workouts, classes and challenges</li><li>Build trust with professional, on-brand content</li><li>Save time with ready-to-customise designs</li></ul><p>Fully editable in Canva. No design skills needed.</p></div><aside><h3>Secure Payment & Verification</h3><span>▣ 100% secure checkout</span><span>▧ Pay via UPI, cards, netbanking & more</span><span>◷ Manual payment verification</span><span>✉ Access after confirmation</span><div>VISA　●　RuPay　UPI</div></aside></div>,
+          content: <div className="product-description"><div><p>{product.long}</p></div><aside><h3>Secure Payment & Verification</h3><span>▣ 100% secure checkout</span><span>▧ Pay via UPI, cards, netbanking & more</span><span>◷ Manual payment verification</span><span>✉ Access after confirmation</span><div>VISA　●　RuPay　UPI</div></aside></div>,
         },
         {
           id: 'included',
