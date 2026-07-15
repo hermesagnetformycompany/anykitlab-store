@@ -6,6 +6,7 @@ import './home-reference.css';
 import './admin-v2.css';
 import './scale.css';
 import './polish.css';
+import './audit-fixes.css';
 import {AppShell} from '@/components/site';
 import {
   SITE_URL,
@@ -53,9 +54,7 @@ export const metadata: Metadata = {
     'max-image-preview': 'large',
     'max-video-preview': -1,
   },
-  alternates: {
-    canonical: '/',
-  },
+  alternates: {canonical: '/'},
   openGraph: {
     type: 'website',
     locale: SITE_LOCALE,
@@ -63,14 +62,7 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     title: `${SITE_NAME} — ${SITE_TAGLINE}`,
     description: SITE_DESCRIPTION,
-    images: [
-      {
-        url: '/og-default.png',
-        width: 1200,
-        height: 630,
-        alt: SITE_NAME,
-      },
-    ],
+    images: [{url: '/og-default.png', width: 1200, height: 630, alt: SITE_NAME}],
   },
   twitter: {
     card: 'summary_large_image',
@@ -79,10 +71,7 @@ export const metadata: Metadata = {
     images: ['/og-default.png'],
   },
   manifest: '/manifest.webmanifest',
-  icons: {
-    icon: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
-  },
+  icons: {icon: '/favicon.ico', apple: '/apple-touch-icon.png'},
   category: 'shopping',
 };
 
