@@ -4,8 +4,39 @@ import {getSupabaseServerClient} from '@/lib/supabase/server';
 
 type CheckoutItem = {slug: string; qty: number};
 
+type RateEntry = {count: number; resetAt: number};
+const rateLimit = new Map<string, RateEntry>();
+const RATE_WINDOW_MS = 10 * 60 * 1000;
+const RATE_MAX = 5;
+
+function clientKey(request: NextRequest, userId: string) {
+  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  return `${userId}:${forwarded || 'unknown'}`;
+}
+
+function isRateLimited(key: string) {
+  const now = Date.now();
+  const current = rateLimit.get(key);
+  if (!current || current.resetAt <= now) {
+    rateLimit.set(key, {count: 1, resetAt: now + RATE_WINDOW_MS});
+    return false;
+  }
+  current.count += 1;
+  rateLimit.set(key, current);
+  return current.count > RATE_MAX;
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const serverClient = await getSupabaseServerClient();
+    const {data: {user}, error: userError} = await serverClient.auth.getUser();
+    if (userError || !user?.id || !user.email) {
+      return NextResponse.json({error: 'Sign in to submit an order and receive account access.'}, {status: 401});
+    }
+    if (isRateLimited(clientKey(request, user.id))) {
+      return NextResponse.json({error: 'Too many order attempts. Please wait before trying again.'}, {status: 429, headers: {'Retry-After': '600'}});
+    }
+
     const body = await request.json() as {
       name?: string;
       email?: string;
@@ -22,6 +53,9 @@ export async function POST(request: NextRequest) {
     if (name.length < 2 || !/^\S+@\S+\.\S+$/.test(email) || phone.length < 7) {
       return NextResponse.json({error: 'Enter a valid name, email address, and phone number.'}, {status: 400});
     }
+    if (email !== user.email.toLowerCase()) {
+      return NextResponse.json({error: 'Use the email address connected to your signed-in account.'}, {status: 400});
+    }
     if (!/^[A-Z0-9-]{6,40}$/.test(reference)) {
       return NextResponse.json({error: 'Enter a valid payment transaction reference.'}, {status: 400});
     }
@@ -29,8 +63,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({error: 'The cart contains invalid items.'}, {status: 400});
     }
 
-    const serverClient = await getSupabaseServerClient();
-    const {data: {user}} = await serverClient.auth.getUser();
     const admin = getSupabaseAdminClient();
     const slugs = [...new Set(items.map(item => item.slug))];
     const {data: products, error: productError} = await admin
@@ -46,9 +78,9 @@ export async function POST(request: NextRequest) {
     const productsBySlug = new Map(products.map(product => [product.slug, product]));
     const total = items.reduce((sum, item) => sum + productsBySlug.get(item.slug)!.price * item.qty, 0);
     const {data: order, error: orderError} = await admin.from('akl_orders').insert({
-      user_id: user?.id || null,
+      user_id: user.id,
       customer_name: name,
-      customer_email: email,
+      customer_email: user.email.toLowerCase(),
       customer_phone: phone,
       total,
       payment_reference: reference,
@@ -62,14 +94,7 @@ export async function POST(request: NextRequest) {
 
     const orderItems = items.map(item => {
       const product = productsBySlug.get(item.slug)!;
-      return {
-        order_id: order.id,
-        product_id: product.id,
-        product_slug: product.slug,
-        product_title: product.title,
-        unit_price: product.price,
-        quantity: item.qty,
-      };
+      return {order_id: order.id, product_id: product.id, product_slug: product.slug, product_title: product.title, unit_price: product.price, quantity: item.qty};
     });
     const {error: itemError} = await admin.from('akl_order_items').insert(orderItems);
     if (itemError) {
@@ -86,7 +111,7 @@ export async function POST(request: NextRequest) {
         reference,
         items,
         name,
-        email,
+        email: user.email.toLowerCase(),
         phone,
       },
     }, {status: 201});
