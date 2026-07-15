@@ -50,15 +50,51 @@ export async function GET() {
   });
 }
 
+export async function PATCH(request: NextRequest) {
+  if (!(await requireCatalogAdmin())) return forbidden();
+  const body = await request.json() as {kind?: string; id?: string; values?: Record<string, unknown>};
+  const kind = String(body.kind || '');
+  const id = String(body.id || '');
+  const values = body.values || {};
+  if (!id || !['template', 'category', 'collection'].includes(kind)) {
+    return NextResponse.json({error: 'Invalid update request.'}, {status: 400});
+  }
+
+  const admin = getSupabaseAdminClient();
+  if (kind === 'template') {
+    const status = String(values.status || '');
+    if (!['Published', 'Draft', 'Archived'].includes(status)) return NextResponse.json({error: 'Invalid template status.'}, {status: 400});
+    const {error} = await admin.from('akl_products').update({status}).eq('id', id);
+    if (error) return NextResponse.json({error: error.message}, {status: 500});
+  }
+
+  if (kind === 'category') {
+    const payload: Record<string, unknown> = {};
+    if (typeof values.name === 'string' && values.name.trim()) payload.name = values.name.trim();
+    if (typeof values.description === 'string') payload.description = values.description.trim();
+    if (typeof values.status === 'string' && ['Active', 'Hidden'].includes(values.status)) payload.status = values.status;
+    if (!Object.keys(payload).length) return NextResponse.json({error: 'No valid category changes supplied.'}, {status: 400});
+    const {error} = await admin.from('akl_categories').update(payload).eq('id', id);
+    if (error) return NextResponse.json({error: error.message}, {status: 500});
+  }
+
+  if (kind === 'collection') {
+    const payload: Record<string, unknown> = {};
+    if (typeof values.name === 'string' && values.name.trim()) payload.name = values.name.trim();
+    if (typeof values.description === 'string') payload.description = values.description.trim();
+    if (typeof values.status === 'string' && ['Published', 'Draft'].includes(values.status)) payload.status = values.status;
+    if (!Object.keys(payload).length) return NextResponse.json({error: 'No valid collection changes supplied.'}, {status: 400});
+    const {error} = await admin.from('akl_collections').update(payload).eq('id', id);
+    if (error) return NextResponse.json({error: error.message}, {status: 500});
+  }
+
+  revalidateStorefront();
+  return NextResponse.json({ok: true});
+}
+
 export async function POST(request: NextRequest) {
-  const actor = await requireCatalogAdmin();
-  if (!actor) return forbidden();
-  const body = await request.json() as {
-    action?: string;
-    productSlug?: string;
-    mediaIds?: string[];
-    coverId?: string;
-  };
+  if (!(await requireCatalogAdmin())) return forbidden();
+  const body = await request.json() as {action?: string; productSlug?: string; mediaIds?: string[]; coverId?: string};
   if (body.action !== 'assign-media') return NextResponse.json({error: 'Unknown action.'}, {status: 400});
 
   const productSlug = String(body.productSlug || '').trim();
@@ -80,10 +116,7 @@ export async function POST(request: NextRequest) {
   }
 
   for (const item of media) {
-    const {error} = await admin.from('akl_media_assets').update({
-      product_slug: productSlug,
-      asset_type: item.id === coverId ? 'Cover' : 'Preview',
-    }).eq('id', item.id);
+    const {error} = await admin.from('akl_media_assets').update({product_slug: productSlug, asset_type: item.id === coverId ? 'Cover' : 'Preview'}).eq('id', item.id);
     if (error) return NextResponse.json({error: error.message}, {status: 500});
   }
 
@@ -101,17 +134,13 @@ export async function DELETE(request: NextRequest) {
   const body = await request.json() as {kind?: string; id?: string; cascade?: boolean};
   const kind = String(body.kind || '');
   const id = String(body.id || '');
-  if (!id || !['category', 'collection', 'media', 'template'].includes(kind)) {
-    return NextResponse.json({error: 'Invalid delete request.'}, {status: 400});
-  }
+  if (!id || !['category', 'collection', 'media', 'template'].includes(kind)) return NextResponse.json({error: 'Invalid delete request.'}, {status: 400});
 
   const admin = getSupabaseAdminClient();
   if (kind === 'category') {
     const {data: linked, error: linkedError} = await admin.from('akl_products').select('id').eq('category_id', id);
     if (linkedError) return NextResponse.json({error: linkedError.message}, {status: 500});
-    if (linked?.length && !body.cascade) {
-      return NextResponse.json({error: `This category contains ${linked.length} template${linked.length === 1 ? '' : 's'}. Delete or move them first, or confirm cascade deletion.`, requiresCascade: true}, {status: 409});
-    }
+    if (linked?.length && !body.cascade) return NextResponse.json({error: `This category contains ${linked.length} template${linked.length === 1 ? '' : 's'}. Delete or move them first, or confirm cascade deletion.`, requiresCascade: true}, {status: 409});
     if (linked?.length) {
       const {error} = await admin.from('akl_products').delete().eq('category_id', id);
       if (error) return NextResponse.json({error: error.message}, {status: 500});
@@ -143,9 +172,7 @@ export async function DELETE(request: NextRequest) {
     if (asset.storage_path) await admin.storage.from(bucket).remove([asset.storage_path]);
     const {error} = await admin.from('akl_media_assets').delete().eq('id', id);
     if (error) return NextResponse.json({error: error.message}, {status: 500});
-    if (asset.product_slug && asset.public_url) {
-      await admin.from('akl_products').update({cover_url: ''}).eq('slug', asset.product_slug).eq('cover_url', asset.public_url);
-    }
+    if (asset.product_slug && asset.public_url) await admin.from('akl_products').update({cover_url: ''}).eq('slug', asset.product_slug).eq('cover_url', asset.public_url);
   }
 
   revalidateStorefront();
