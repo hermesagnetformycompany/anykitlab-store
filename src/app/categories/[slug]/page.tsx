@@ -16,17 +16,15 @@ import {
   UtensilsCrossed,
 } from 'lucide-react';
 import {CatalogBrowser} from '@/components/catalog-browser';
-import {categories as staticCategories} from '@/lib/data';
 import {getCatalogData} from '@/lib/catalog';
 import {buildMetadata, breadcrumbJsonLd, SITE_URL} from '@/lib/seo';
 
-export function generateStaticParams() {
-  return staticCategories.map(category => ({slug: category.slug}));
-}
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({params}: {params: Promise<{slug: string}>}): Promise<Metadata> {
   const {slug} = await params;
-  const category = staticCategories.find(c => c.slug === slug);
+  const {categories} = await getCatalogData();
+  const category = categories.find(item => item.slug === slug);
   if (!category) return buildMetadata({title: 'Category Not Found', path: `/categories/${slug}`, noIndex: true});
   return buildMetadata({
     title: `${category.name} Templates`,
@@ -45,54 +43,18 @@ type CategoryPresentation = {
 };
 
 const categoryPresentations: Record<string, CategoryPresentation> = {
-  fitness: {
-    icon: Dumbbell,
-    kicker: 'MOVE WITH PURPOSE',
-    tagline: 'For gyms, trainers, studios and wellness professionals.',
-    subcategories: ['Gym & Fitness', 'Yoga & Mindfulness', 'Nutrition & Meal Plans', 'Wellness Coaching', 'Recovery & Mobility'],
-    formats: ['Instagram Posts', 'Stories', 'Carousels', 'Offer Graphics', 'Presentations'],
-  },
-  beauty: {
-    icon: Scissors,
-    kicker: 'BOOKED & BEAUTIFUL',
-    tagline: 'For salons, artists, studios and appointment-led brands.',
-    subcategories: ['Lash & Brow', 'Hair & Salon', 'Nails', 'Skincare', 'Beauty Education'],
-    formats: ['Instagram Posts', 'Stories', 'Price Lists', 'Booking Policies', 'Highlight Covers'],
-  },
-  automotive: {
-    icon: CarFront,
-    kicker: 'BUILT TO IMPRESS',
-    tagline: 'For detailers, garages and automotive specialists.',
-    subcategories: ['Auto Detailing', 'Ceramic Coating', 'Car Care', 'Garages', 'Mobile Detailers'],
-    formats: ['Before & After', 'Service Menus', 'Instagram Posts', 'Stories', 'Offer Graphics'],
-  },
-  food: {
-    icon: UtensilsCrossed,
-    kicker: 'MADE TO BE CRAVED',
-    tagline: 'For restaurants, cafés and food-first businesses.',
-    subcategories: ['Restaurants', 'Cafés', 'Bakeries', 'Cloud Kitchens', 'Catering'],
-    formats: ['Menu Cards', 'Instagram Posts', 'Stories', 'Offer Graphics', 'Table Displays'],
-  },
-  'real-estate': {
-    icon: Building2,
-    kicker: 'LIST WITH CONFIDENCE',
-    tagline: 'For agents, brokers and property businesses.',
-    subcategories: ['Residential', 'Commercial', 'Property Launches', 'Agent Branding', 'Rental Listings'],
-    formats: ['Property Posts', 'Listing Cards', 'Stories', 'Agent Profiles', 'Presentations'],
-  },
-  coaching: {
-    icon: BriefcaseBusiness,
-    kicker: 'LEAD WITH AUTHORITY',
-    tagline: 'For coaches, consultants and service-led experts.',
-    subcategories: ['Business Coaching', 'Life Coaching', 'Consulting', 'Personal Branding', 'Lead Magnets'],
-    formats: ['Authority Posts', 'Carousels', 'Offer Cards', 'Lead Magnets', 'Presentations'],
-  },
+  fitness: {icon: Dumbbell, kicker: 'MOVE WITH PURPOSE', tagline: 'For gyms, trainers, studios and wellness professionals.', subcategories: ['Gym & Fitness', 'Yoga & Mindfulness', 'Nutrition & Meal Plans', 'Wellness Coaching', 'Recovery & Mobility'], formats: ['Instagram Posts', 'Stories', 'Carousels', 'Offer Graphics', 'Presentations']},
+  beauty: {icon: Scissors, kicker: 'BOOKED & BEAUTIFUL', tagline: 'For salons, artists, studios and appointment-led brands.', subcategories: ['Lash & Brow', 'Hair & Salon', 'Nails', 'Skincare', 'Beauty Education'], formats: ['Instagram Posts', 'Stories', 'Price Lists', 'Booking Policies', 'Highlight Covers']},
+  automotive: {icon: CarFront, kicker: 'BUILT TO IMPRESS', tagline: 'For detailers, garages and automotive specialists.', subcategories: ['Auto Detailing', 'Ceramic Coating', 'Car Care', 'Garages', 'Mobile Detailers'], formats: ['Before & After', 'Service Menus', 'Instagram Posts', 'Stories', 'Offer Graphics']},
+  food: {icon: UtensilsCrossed, kicker: 'MADE TO BE CRAVED', tagline: 'For restaurants, cafés and food-first businesses.', subcategories: ['Restaurants', 'Cafés', 'Bakeries', 'Cloud Kitchens', 'Catering'], formats: ['Menu Cards', 'Instagram Posts', 'Stories', 'Offer Graphics', 'Table Displays']},
+  'real-estate': {icon: Building2, kicker: 'LIST WITH CONFIDENCE', tagline: 'For agents, brokers and property businesses.', subcategories: ['Residential', 'Commercial', 'Property Launches', 'Agent Branding', 'Rental Listings'], formats: ['Property Posts', 'Listing Cards', 'Stories', 'Agent Profiles', 'Presentations']},
+  coaching: {icon: BriefcaseBusiness, kicker: 'LEAD WITH AUTHORITY', tagline: 'For coaches, consultants and service-led experts.', subcategories: ['Business Coaching', 'Life Coaching', 'Consulting', 'Personal Branding', 'Lead Magnets'], formats: ['Authority Posts', 'Carousels', 'Offer Cards', 'Lead Magnets', 'Presentations']},
 };
 
 const benefits = [
-  {label: 'Editable in Canva', icon: LayoutTemplate},
-  {label: 'Practical & proven', icon: CheckCircle2},
-  {label: 'Saves hours', icon: Clock3},
+  {label: 'Editable formats', icon: LayoutTemplate},
+  {label: 'Clear kit details', icon: CheckCircle2},
+  {label: 'Saves setup time', icon: Clock3},
   {label: 'Launch faster', icon: Rocket},
   {label: 'Reusable systems', icon: Sparkles},
   {label: 'Built for business', icon: BriefcaseBusiness},
@@ -102,10 +64,17 @@ export default async function CategoryPage({params}: {params: Promise<{slug: str
   const [{slug}, catalog] = await Promise.all([params, getCatalogData()]);
   const {categories, products} = catalog;
   const category = categories.find(item => item.slug === slug);
-  const presentation = categoryPresentations[slug];
-  if (!category || !presentation) notFound();
+  if (!category) notFound();
 
-  const items = products.filter(product => product.categoryId === category.id && product.status === 'Published');
+  const items = products.filter(product => product.categoryId === category.id);
+  const actualFormats = [...new Set(items.flatMap(product => product.formats))];
+  const presentation = categoryPresentations[slug] || {
+    icon: LayoutTemplate,
+    kicker: 'BUILT TO LAUNCH',
+    tagline: category.description,
+    subcategories: [],
+    formats: actualFormats,
+  };
   const layoutTotal = items.reduce((total, product) => total + product.layoutCount, 0);
   const CategoryIcon = presentation.icon;
   const categoryBreadcrumbs = breadcrumbJsonLd([
@@ -122,19 +91,16 @@ export default async function CategoryPage({params}: {params: Promise<{slug: str
         <div className="category-hero-copy">
           <span>{category.name.toUpperCase()}</span>
           <h1>{category.name}<br />Templates</h1>
-          <p>{category.description} Browse focused, ready-to-edit Canva systems designed to keep your brand consistent and help you publish faster.</p>
-          <div className="category-stats"><b>{items.length}<small>{items.length === 1 ? 'Kit' : 'Kits'}</small></b><b>{layoutTotal}+<small>Layouts</small></b><b>100%<small>Editable</small></b><b>Canva<small>Easy to use</small></b></div>
+          <p>{category.description || presentation.tagline}</p>
+          <div className="category-stats"><b>{items.length}<small>{items.length === 1 ? 'Kit' : 'Kits'}</small></b><b>{layoutTotal}<small>Layouts</small></b><b>{actualFormats.length}<small>Formats</small></b><b>Digital<small>Delivery</small></b></div>
         </div>
         <div className="category-hero-art">
-          <div className="category-art-placeholder"><CategoryIcon aria-hidden="true" /><span>{category.name.toUpperCase()}<br />VISUAL COMING SOON</span><small>Your final category artwork will live here.</small></div>
+          <div className="category-art-placeholder"><CategoryIcon aria-hidden="true" /><span>{category.name.toUpperCase()}<br />COLLECTION</span><small>{presentation.tagline}</small></div>
           <span>{presentation.kicker}</span><i><Sparkles aria-hidden="true" /></i>
         </div>
       </section>
-      <section className="category-benefits" aria-label="Template benefits">
-        {benefits.map(({label, icon: Icon}) => <span key={label}><Icon aria-hidden="true" />{label}</span>)}
-      </section>
-
-      <CatalogBrowser products={items} mode="category" subcategories={presentation.subcategories} formats={presentation.formats} />
+      <section className="category-benefits" aria-label="Template benefits">{benefits.map(({label, icon: Icon}) => <span key={label}><Icon aria-hidden="true" />{label}</span>)}</section>
+      <CatalogBrowser products={items} mode="category" subcategories={presentation.subcategories} formats={actualFormats.length ? actualFormats : presentation.formats} />
       <section className="related-categories"><b>Explore more</b>{categories.filter(item => item.id !== category.id).slice(0, 4).map(item => <Link href={`/categories/${item.slug}`} key={item.id}>{item.name}</Link>)}<Link href="/shop">All templates →</Link></section>
     </div>
   );
