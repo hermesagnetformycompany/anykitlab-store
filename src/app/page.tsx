@@ -65,7 +65,7 @@ export default async function Home() {
     {question: 'How do I receive my kit after purchase?', answer: 'Once payment is verified, access appears in your customer account and you receive a delivery confirmation by email.'},
     {question: 'Do I need a Canva Pro account?', answer: 'No. Every included layout is designed to work with a free Canva account unless a kit clearly says otherwise.'},
     {question: 'Can I use the templates for my clients?', answer: 'Yes. Use and adapt the templates for your own business as often as you like. Resale, sharing or redistribution is not permitted.'},
-    {question: 'What’s your refund policy?', answer: 'Because digital products cannot be returned, purchases are generally final. If a file is faulty or inaccessible, contact support and we will make it right.'},
+    {question: 'What\u2019s your refund policy?', answer: 'Because digital products cannot be returned, purchases are generally final. If a file is faulty or inaccessible, contact support and we will make it right.'},
   ];
   const structuredData = [organizationJsonLd(), websiteJsonLd(), faqJsonLd(homeFaqs)];
   return (
