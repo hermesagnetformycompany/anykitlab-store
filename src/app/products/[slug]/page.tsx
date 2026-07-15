@@ -105,7 +105,7 @@ export default async function ProductPage({params}: {params: Promise<{slug: stri
         {
           id: 'reviews',
           label: 'Reviews',
-          content: <div className="product-description"><div><p>⭐⭐⭐⭐⭐ 4.9 (128 reviews)</p><p>2,145+ customers have used this kit.</p></div></div>,
+          content: <div className="product-description"><div><p>Reviews coming soon.</p></div></div>,
         },
       ]} />
 
