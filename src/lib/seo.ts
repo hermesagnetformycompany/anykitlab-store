@@ -1,6 +1,6 @@
 import type {Metadata} from 'next';
 
-export const SITE_URL = 'https://anykitlab-store.vercel.app';
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://anykitlab-store.vercel.app').replace(/\/$/, '');
 export const SITE_NAME = 'AnyKit Lab';
 export const SITE_TAGLINE = 'Templates for brands that move';
 export const SITE_DESCRIPTION =
@@ -20,10 +20,6 @@ type BuildMetadataInput = {
   keywords?: string[];
 };
 
-/**
- * Build a per-page Metadata object that inherits the root template/title
- * defaults while providing canonical, OG, Twitter and robots directives.
- */
 export function buildMetadata({
   title,
   description = SITE_DESCRIPTION,
@@ -64,27 +60,12 @@ export function buildMetadata({
 
 type JsonLdInput = Record<string, unknown> | Record<string, unknown>[];
 
-/**
- * Render a JSON-LD script tag for structured data.
- * Use in server components: <script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(data)}} />
- */
 export function jsonLdScript(data: JsonLdInput) {
-  return {
-    type: 'application/ld+json' as const,
-    dangerouslySetInnerHTML: {__html: JSON.stringify(data)},
-  };
+  return {type: 'application/ld+json' as const, dangerouslySetInnerHTML: {__html: JSON.stringify(data)}};
 }
 
 export function organizationJsonLd() {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: SITE_NAME,
-    url: SITE_URL,
-    logo: `${SITE_URL}${SITE_LOGO}`,
-    description: SITE_DESCRIPTION,
-    sameAs: [] as string[],
-  };
+  return {'@context': 'https://schema.org', '@type': 'Organization', name: SITE_NAME, url: SITE_URL, logo: `${SITE_URL}${SITE_LOGO}`, description: SITE_DESCRIPTION, sameAs: [] as string[]};
 }
 
 export function websiteJsonLd() {
@@ -94,11 +75,7 @@ export function websiteJsonLd() {
     name: SITE_NAME,
     url: SITE_URL,
     description: SITE_DESCRIPTION,
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: `${SITE_URL}/shop?q={search_term_string}`,
-      'query-input': 'required name=search_term_string',
-    },
+    potentialAction: {'@type': 'SearchAction', target: `${SITE_URL}/shop?q={search_term_string}`, 'query-input': 'required name=search_term_string'},
   };
 }
 
@@ -106,12 +83,7 @@ export function breadcrumbJsonLd(items: {name: string; url: string}[]) {
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
-    itemListElement: items.map((item, index) => ({
-      '@type': 'ListItem',
-      position: index + 1,
-      name: item.name,
-      item: item.url,
-    })),
+    itemListElement: items.map((item, index) => ({'@type': 'ListItem', position: index + 1, name: item.name, item: item.url})),
   };
 }
 
@@ -137,8 +109,8 @@ export function productJsonLd(product: {
       url: `${SITE_URL}/products/${product.slug}`,
       priceCurrency: 'INR',
       price: product.price,
-      ...(product.mrp ? {'@type': 'AggregateOffer', lowPrice: product.price, highPrice: product.mrp} : {}),
       availability: 'https://schema.org/InStock',
+      itemCondition: 'https://schema.org/NewCondition',
       seller: {'@type': 'Organization', name: SITE_NAME},
     },
   };
@@ -148,10 +120,6 @@ export function faqJsonLd(faqs: {question: string; answer: string}[]) {
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
-    mainEntity: faqs.map(faq => ({
-      '@type': 'Question',
-      name: faq.question,
-      acceptedAnswer: {'@type': 'Answer', text: faq.answer},
-    })),
+    mainEntity: faqs.map(faq => ({'@type': 'Question', name: faq.question, acceptedAnswer: {'@type': 'Answer', text: faq.answer}})),
   };
 }
