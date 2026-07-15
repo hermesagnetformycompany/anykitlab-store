@@ -39,7 +39,7 @@ export default async function ProductPage({params}: {params: Promise<{slug: stri
     {question: 'Is this a digital product?', answer: 'Yes. No physical product is shipped. Access is provided after payment verification.'},
   ];
   const structuredData = [
-    productJsonLd({title: product.title, description: product.description, price: product.price, mrp: product.mrp, slug: product.slug, category: product.category, includes}),
+    productJsonLd({title: product.title, description: product.description, price: product.price, mrp: product.mrp, slug: product.slug, category: product.category, includes: included}),
     breadcrumbJsonLd([
       {name: 'Home', url: SITE_URL},
       {name: 'Templates', url: `${SITE_URL}/shop`},
