@@ -68,6 +68,9 @@ body::-webkit-scrollbar,
 }
 .placeholder-stack > span:nth-child(2) { height: 94%; }
 .placeholder-stack b { margin-bottom: 24px; font-size: 28px; }
+.hero-product-covers > span { padding: 0; overflow: hidden; background: #efe7d9; }
+.hero-product-covers > span::after { content: none; }
+.hero-product-covers img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .hero-visual::after { left: 20%; right: 2%; height: 68px; border-radius: 12px; }
 .hero-visual > p { bottom: 24px; }
 
@@ -91,6 +94,11 @@ body::-webkit-scrollbar,
 .secondary-action { border-radius: 10px; }
 .home-product:hover,
 .reference-card:hover { transform: translateY(-4px); box-shadow: 0 16px 34px rgba(40, 34, 27, .1); }
+.collection-placeholder { overflow: hidden; position: relative; }
+.collection-placeholder img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.collection-placeholder:has(img) small { position: relative; z-index: 1; align-self: end; margin-bottom: 8px; padding: 4px 7px; border-radius: 999px; background: rgba(255, 253, 248, .9); }
+@media (min-width: 761px) { .collection-grid > a { height: 180px; } }
+@media (max-width: 760px) { .collection-grid > a { height: 125px; } }
 
 .filter-heading {
   min-height: 48px;

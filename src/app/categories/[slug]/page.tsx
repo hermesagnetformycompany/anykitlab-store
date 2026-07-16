@@ -71,7 +71,7 @@ export default async function CategoryPage({params}: {params: Promise<{slug: str
         <div className="catalog-empty" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'50vh',textAlign:'center',padding:'2rem'}}>
           <LayoutTemplate aria-hidden="true" style={{width:'3rem',height:'3rem',marginBottom:'1rem',opacity:.4}} />
           <h2>Category not available yet</h2>
-          <p style={{color:'#666',maxWidth:'400px'}}>We're setting up our catalog. Please check back soon.</p>
+          <p style={{color:'#666',maxWidth:'400px'}}>We’re setting up our catalog. Please check back soon.</p>
           <Link href="/shop" style={{marginTop:'1rem',padding:'0.75rem 1.5rem',background:'var(--accent,#f0642f)',color:'#fff',borderRadius:'8px',textDecoration:'none',fontWeight:600}}>Browse all kits</Link>
         </div>
       );
@@ -108,7 +108,7 @@ export default async function CategoryPage({params}: {params: Promise<{slug: str
           <div className="category-stats"><b>{items.length}<small>{items.length === 1 ? 'Kit' : 'Kits'}</small></b><b>{layoutTotal}<small>Layouts</small></b><b>{actualFormats.length}<small>Formats</small></b><b>Digital<small>Delivery</small></b></div>
         </div>
         <div className="category-hero-art">
-          <div className="category-art-placeholder"><CategoryIcon aria-hidden="true" /><span>{category.name.toUpperCase()}<br />COLLECTION</span><small>{presentation.tagline}</small></div>
+          <div className="category-art-placeholder">{category.imageUrl ? <img src={category.imageUrl} alt={`${category.name} template kit preview`} /> : <><CategoryIcon aria-hidden="true" /><span>{category.name.toUpperCase()}<br />COLLECTION</span><small>{presentation.tagline}</small></>}</div>
           <span>{presentation.kicker}</span><i><Sparkles aria-hidden="true" /></i>
         </div>
       </section>

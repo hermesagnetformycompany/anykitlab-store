@@ -13,20 +13,19 @@
  *   SUPABASE_SERVICE_ROLE_KEY
  */
 
-function env(name: string): string | undefined {
-  return process.env[name];
-}
+const publicSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const publicSupabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export function hasSupabaseConfig(): boolean {
   return Boolean(getSupabaseUrl() && getSupabasePublishableKey());
 }
 
 export function getSupabaseUrl(): string {
-  return env('NEXT_PUBLIC_SUPABASE_URL') || env('SUPABASE_URL') || '';
+  return publicSupabaseUrl || process.env.SUPABASE_URL || '';
 }
 
 export function getSupabasePublishableKey(): string {
-  return env('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY') || env('NEXT_PUBLIC_SUPABASE_ANON_KEY') || env('SUPABASE_ANON_KEY') || '';
+  return publicSupabaseKey || process.env.SUPABASE_ANON_KEY || '';
 }
 
 export function getSupabaseConfig(): {url: string; publishableKey: string} {
@@ -41,7 +40,7 @@ export function getSupabaseConfig(): {url: string; publishableKey: string} {
 }
 
 export function getSupabaseSecretKey(): string {
-  const secretKey = env('SUPABASE_SECRET_KEY') || env('SUPABASE_SERVICE_ROLE_KEY');
+  const secretKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!secretKey) throw new Error('SUPABASE_SECRET_KEY is not configured.');
   return secretKey;
 }

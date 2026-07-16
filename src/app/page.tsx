@@ -36,14 +36,14 @@ export const metadata: Metadata = buildMetadata({
   keywords: ['Canva templates', 'template kits', 'Instagram templates', 'digital products', 'small business templates'],
 });
 
-const categoryItems = [
-  {name: 'Fitness & Wellness', slug: 'fitness', icon: Dumbbell},
-  {name: 'Beauty & Service', slug: 'beauty', icon: Scissors},
-  {name: 'Auto Detailing', slug: 'automotive', icon: CarFront},
-  {name: 'Food & Hospitality', slug: 'food', icon: Utensils},
-  {name: 'Real Estate', slug: 'real-estate', icon: Building2},
-  {name: 'Coaches & Consultants', slug: 'coaching', icon: BriefcaseBusiness},
-];
+const categoryIcons = {
+  fitness: Dumbbell,
+  beauty: Scissors,
+  automotive: CarFront,
+  food: Utensils,
+  'real-estate': Building2,
+  coaching: BriefcaseBusiness,
+} as const;
 
 const delivery = [
   {number: '01', title: 'Choose your kit', copy: 'Browse and add your favourite kit to cart.', icon: ShoppingCart},
@@ -62,7 +62,9 @@ const faqs: [string, string][] = [
 ];
 
 export default async function Home() {
-  const {products} = await getCatalogData();
+  const {products, categories, collections, settings} = await getCatalogData();
+  const heroImages = [settings.heroImage1, settings.heroImage2, settings.heroImage3].filter((value): value is string => Boolean(value));
+  const usesBundledOgHero = heroImages.length === 3 && heroImages.every(src => src.startsWith('/reference/'));
   const homeFaqs = faqs.map(([question, answer]) => ({question, answer}));
   const structuredData = [organizationJsonLd(), websiteJsonLd(), faqJsonLd(homeFaqs)];
 
@@ -76,10 +78,10 @@ export default async function Home() {
           <p>Canva template kits and digital launch assets for small businesses, creators, founders and service providers.</p>
           <div className="hero-actions"><Link className="primary-action" href="/shop">Shop All Kits <span>→</span></Link><Link className="secondary-action" href="/collections/col-launch">Explore Starter Kits</Link></div>
         </div>
-        <div className="hero-visual hero-visual-placeholder" aria-label="Product artwork coming soon">
-          <div className="placeholder-stack"><span><small>FITNESS</small><b>Cover<br />visual</b></span><span><small>BEAUTY</small><b>Cover<br />visual</b></span><span><small>DETAILING</small><b>Cover<br />visual</b></span></div>
+        <div className="hero-visual" aria-label="Featured AnyKit Lab template kits">
+          {usesBundledOgHero ? <img className="hero-og-art" src="/reference/hero-kits.png" alt="AnyKit Lab template kit collection" /> : <div className="placeholder-stack hero-product-covers">{heroImages.map((src, index) => <span key={src}><img src={src} alt={`Featured AnyKit Lab kit ${index + 1}`} /></span>)}</div>}
           <div className="quality-seal"><Sparkles aria-hidden="true" /><span>MADE TO EDIT<br />BUILT TO GROW</span></div>
-          <p>New product artwork is being prepared.<br />The store structure is ready for your final covers.</p>
+          <p>Professional template systems for real businesses.<br />Choose a kit, customise it, and launch faster.</p>
         </div>
         <div className="hero-benefits">
           <span><PencilRuler aria-hidden="true" />Editable in Canva</span><span><BadgeCheck aria-hidden="true" />Practical & proven</span><span><Clock3 aria-hidden="true" />Saves time</span><span><Rocket aria-hidden="true" />Launch faster</span><span><Gauge aria-hidden="true" />Usable systems</span>
@@ -99,18 +101,19 @@ export default async function Home() {
       <section className="home-block category-block">
         <div className="block-heading"><h2>Shop by Category</h2></div>
         <div className="category-grid">
-          {categoryItems.map(category => {const Icon = category.icon; return <Link href={`/categories/${category.slug}`} key={category.slug}><span className="line-icon"><Icon aria-hidden="true" /></span><b>{category.name}</b></Link>;})}
+          {categories.slice(0, 6).map(category => {const Icon = categoryIcons[category.slug as keyof typeof categoryIcons] || Store; return <Link href={`/categories/${category.slug}`} key={category.slug}><span className="line-icon"><Icon aria-hidden="true" /></span><b>{category.name}</b></Link>;})}
           <Link className="all-categories" href="/shop"><span className="line-icon"><Store aria-hidden="true" /></span><b>View all<br />categories</b></Link>
         </div>
+        {!categories.length && <p className="home-empty-message">Published categories will appear here once they are available.</p>}
       </section>
 
       <section className="home-block collection-block">
         <div className="block-heading"><h2>Collections</h2></div>
         <div className="collection-grid">
-          <Link href="/shop?collection=bestsellers"><div><h3>Bestsellers</h3><p>Customer favourites that get results.</p><span>Shop Bestsellers →</span></div><div className="collection-placeholder"><BadgeCheck aria-hidden="true" /><small>BESTSELLING KITS</small></div></Link>
-          <Link href="/shop?collection=new-arrivals"><div><h3>New Arrivals</h3><p>Fresh kits to keep your brand ahead.</p><span>Shop New →</span></div><div className="collection-placeholder"><Sparkles aria-hidden="true" /><small>NEW TO THE LAB</small></div></Link>
-          <Link href="/collections/col-launch"><div><h3>Starter Kits</h3><p>Perfect for getting started and launching fast.</p><span>Explore Starters →</span></div><div className="collection-placeholder"><Rocket aria-hidden="true" /><small>STARTER SYSTEMS</small></div></Link>
+          {collections.slice(0, 3).map((collection, index) => <Link href={`/collections/${collection.id}`} key={collection.id}><div><h3>{collection.name}</h3><p>{collection.description}</p><span>Explore Collection →</span></div><div className="collection-placeholder">{collection.imageUrl ? <img src={collection.imageUrl} alt="" /> : index === 0 ? <BadgeCheck aria-hidden="true" /> : index === 1 ? <Sparkles aria-hidden="true" /> : <Rocket aria-hidden="true" />}<small>PUBLISHED COLLECTION</small></div></Link>)}
+          {collections.length < 3 && <Link href="/shop"><div><h3>All Template Kits</h3><p>Browse every published kit in the store.</p><span>Shop All Kits →</span></div><div className="collection-placeholder"><Store aria-hidden="true" /><small>EXPLORE THE LAB</small></div></Link>}
         </div>
+        {!collections.length && <p className="home-empty-message">Published collections will appear here once they are available.</p>}
       </section>
 
       <section className="home-block delivery-block" id="delivery">
