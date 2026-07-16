@@ -1016,6 +1016,51 @@ main {
   font-size: 5.5px;
 }
 
+/* ── Three value-proposition cards ── */
+.testimonial-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.testimonial-card {
+  padding: 18px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 253, 248, 0.62);
+  text-align: center;
+}
+
+.testimonial-card .card-icon {
+  width: 36px;
+  height: 36px;
+  margin: 0 auto 10px;
+  border-radius: 50%;
+  background: var(--cream);
+  display: grid;
+  place-items: center;
+}
+
+.testimonial-card .card-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: var(--ink);
+}
+
+.testimonial-card h3 {
+  font-size: 8.5px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  margin-bottom: 6px;
+}
+
+.testimonial-card p {
+  font-size: 6.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0;
+}
+
 .social-proof .faq {
   max-width: none;
   margin: 0;
@@ -1395,7 +1440,8 @@ main {
 
   .featured-grid,
   .category-grid,
-  .testimonial-grid {
+  .testimonial-grid,
+  .testimonial-cards {
     display: flex;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
@@ -1404,11 +1450,17 @@ main {
 
   .featured-grid::-webkit-scrollbar,
   .category-grid::-webkit-scrollbar,
-  .testimonial-grid::-webkit-scrollbar {
+  .testimonial-grid::-webkit-scrollbar,
+  .testimonial-cards::-webkit-scrollbar {
     display: none;
   }
 
   .home-product {
+    flex: 0 0 72vw;
+    scroll-snap-align: start;
+  }
+
+  .testimonial-card {
     flex: 0 0 72vw;
     scroll-snap-align: start;
   }

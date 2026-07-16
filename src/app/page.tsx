@@ -124,7 +124,29 @@ export default async function Home() {
         <div><Check aria-hidden="true" /><span><strong>Complete template kits</strong><small>Everything you need in one place.</small></span></div><div><Clock3 aria-hidden="true" /><span><strong>Save hours of work</strong><small>Done-for-you systems you can customise.</small></span></div><div><Gem aria-hidden="true" /><span><strong>Professional & on-brand</strong><small>Look polished and build trust instantly.</small></span></div><div><PencilRuler aria-hidden="true" /><span><strong>Designed for real use</strong><small>Practical, editable and business-ready.</small></span></div><div><Rocket aria-hidden="true" /><span><strong>Launch with confidence</strong><small>Show up consistently and grow your brand.</small></span></div>
       </section>
 
-      <section className="home-block"><div className="faq" id="faqs"><div className="block-heading"><h2>Frequently asked questions</h2></div>{faqs.map(([question, answer]) => <details key={question}><summary>{question}<span>+</span></summary><p>{answer}</p></details>)}<Link href="/help#faqs">View all FAQs →</Link></div></section>
+      <section className="home-block">
+        <div className="testimonial-cards">
+          <div className="testimonial-card">
+            <div className="card-icon"><PencilRuler aria-hidden="true" /></div>
+            <h3>Editable in Canva</h3>
+            <p>Every template is fully customisable — change colours, fonts, images and layout to match your brand in minutes.</p>
+          </div>
+          <div className="testimonial-card">
+            <div className="card-icon"><Rocket aria-hidden="true" /></div>
+            <h3>Launch Faster</h3>
+            <p>Skip the design guesswork. Our kits give you a complete, professional system ready to deploy today.</p>
+          </div>
+          <div className="testimonial-card">
+            <div className="card-icon"><BadgeCheck aria-hidden="true" /></div>
+            <h3>Built for Real Use</h3>
+            <p>Practical, proven layouts designed for actual business needs — not just pretty templates that sit unused.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="home-block">
+        <div className="faq" id="faqs"><div className="block-heading"><h2>Frequently asked questions</h2></div>{faqs.map(([question, answer]) => <details key={question}><summary>{question}<span>+</span></summary><p>{answer}</p></details>)}<Link href="/help#faqs">View all FAQs →</Link></div>
+      </section>
     </div>
   );
 }
