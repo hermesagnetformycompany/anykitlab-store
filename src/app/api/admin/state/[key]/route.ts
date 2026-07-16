@@ -20,8 +20,27 @@ async function removeMissing(table: string, currentIds: string[], nextIds: strin
   const admin = getSupabaseAdminClient();
   const missing = currentIds.filter(id => !nextIds.includes(id));
   if (missing.length) {
+    // For categories, null out product references first to avoid FK constraint errors
+    if (table === 'akl_categories') {
+      const {error: updateError} = await admin.from('akl_products').update({category_id: null}).in('category_id', missing);
+      if (updateError) {
+        console.error(`Failed to null out category_id for products:`, updateError);
+        throw new Error(`Unable to delete categories: products reference them`);
+      }
+    }
+    // For collections, null out product references first to avoid FK constraint errors
+    if (table === 'akl_collections') {
+      const {error: updateError} = await admin.from('akl_products').update({collection_id: null}).in('collection_id', missing);
+      if (updateError) {
+        console.error(`Failed to null out collection_id for products:`, updateError);
+        throw new Error(`Unable to delete collections: products reference them`);
+      }
+    }
     const {error} = await admin.from(table).delete().in('id', missing);
-    if (error) throw error;
+    if (error) {
+      console.error(`Failed to delete from ${table}:`, error);
+      throw error;
+    }
   }
 }
 
@@ -55,13 +74,13 @@ export async function GET(_request: NextRequest, {params}: {params: Promise<{key
     if (key === 'categories') {
       const {data, error} = await admin.from('akl_categories').select('*').order('name');
       if (error) throw error;
-      return NextResponse.json({value: (data || []).map(row => ({id: row.id, slug: row.slug, name: row.name, description: row.description, status: row.status, productCount: row.product_count}))});
+      return NextResponse.json({value: (data || []).map(row => ({id: row.id, slug: row.slug, name: row.name, description: row.description, status: row.status, productCount: row.product_count, imageUrl: row.image_url || ''}))});
     }
 
     if (key === 'collections') {
       const {data, error} = await admin.from('akl_collections').select('*').order('name');
       if (error) throw error;
-      return NextResponse.json({value: (data || []).map(row => ({id: row.id, name: row.name, description: row.description, status: row.status, categoryIds: row.category_ids || []}))});
+      return NextResponse.json({value: (data || []).map(row => ({id: row.id, name: row.name, description: row.description, status: row.status, categoryIds: row.category_ids || [], imageUrl: row.image_url || ''}))});
     }
 
     if (key === 'media') {
@@ -99,7 +118,7 @@ export async function GET(_request: NextRequest, {params}: {params: Promise<{key
 
     const {data, error} = await admin.from('akl_site_settings').select('*').eq('id', 'storefront').single();
     if (error) throw error;
-    return NextResponse.json({value: {storeName: data.store_name, supportEmail: data.support_email, upiId: data.upi_id, verificationSla: data.verification_sla, senderName: data.sender_name}});
+    return NextResponse.json({value: {storeName: data.store_name, supportEmail: data.support_email, upiId: data.upi_id, verificationSla: data.verification_sla, senderName: data.sender_name, heroImage1: data.hero_image_1 || '', heroImage2: data.hero_image_2 || '', heroImage3: data.hero_image_3 || ''}});
   } catch (error) {
     console.error(`Admin ${key} read failed:`, error instanceof Error ? error.message : error);
     return NextResponse.json({error: 'Unable to load administrator data.'}, {status: 500});
@@ -133,14 +152,14 @@ export async function PUT(request: NextRequest, {params}: {params: Promise<{key:
       revalidatePath('/', 'layout');
     } else if (key === 'categories') {
       const value = Array.isArray(body.value) ? body.value as Record<string, unknown>[] : [];
-      const rows = value.map(item => ({id: String(item.id), slug: String(item.slug), name: String(item.name), description: String(item.description || ''), status: String(item.status), product_count: Number(item.productCount || 0)}));
+      const rows = value.map(item => ({id: String(item.id), slug: String(item.slug), name: String(item.name), description: String(item.description || ''), status: String(item.status), product_count: Number(item.productCount || 0), image_url: String(item.imageUrl || '')}));
       const {data: current} = await admin.from('akl_categories').select('id');
       if (rows.length) { const {error} = await admin.from('akl_categories').upsert(rows); if (error) throw error; }
       await removeMissing('akl_categories', (current || []).map(item => item.id), rows.map(item => item.id));
       revalidatePath('/', 'layout');
     } else if (key === 'collections') {
       const value = Array.isArray(body.value) ? body.value as Record<string, unknown>[] : [];
-      const rows = value.map(item => ({id: String(item.id), name: String(item.name), description: String(item.description || ''), status: String(item.status), category_ids: Array.isArray(item.categoryIds) ? item.categoryIds : []}));
+      const rows = value.map(item => ({id: String(item.id), name: String(item.name), description: String(item.description || ''), status: String(item.status), category_ids: Array.isArray(item.categoryIds) ? item.categoryIds : [], image_url: String(item.imageUrl || '')}));
       const {data: current} = await admin.from('akl_collections').select('id');
       if (rows.length) { const {error} = await admin.from('akl_collections').upsert(rows); if (error) throw error; }
       await removeMissing('akl_collections', (current || []).map(item => item.id), rows.map(item => item.id));
@@ -191,7 +210,7 @@ export async function PUT(request: NextRequest, {params}: {params: Promise<{key:
       if (removable.length) await admin.from('akl_profiles').update({status: 'suspended'}).in('id', removable);
     } else if (key === 'settings') {
       const item = (body.value || {}) as Record<string, unknown>;
-      const {error} = await admin.from('akl_site_settings').upsert({id: 'storefront', store_name: String(item.storeName || 'AnyKit Lab'), support_email: String(item.supportEmail || ''), upi_id: String(item.upiId || ''), verification_sla: String(item.verificationSla || ''), sender_name: String(item.senderName || '')});
+      const {error} = await admin.from('akl_site_settings').upsert({id: 'storefront', store_name: String(item.storeName || 'AnyKit Lab'), support_email: String(item.supportEmail || ''), upi_id: String(item.upiId || ''), verification_sla: String(item.verificationSla || ''), sender_name: String(item.senderName || ''), hero_image_1: String(item.heroImage1 || ''), hero_image_2: String(item.heroImage2 || ''), hero_image_3: String(item.heroImage3 || '')});
       if (error) throw error;
     }
     return NextResponse.json({ok: true});
