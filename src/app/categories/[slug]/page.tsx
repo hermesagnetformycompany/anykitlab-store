@@ -64,7 +64,20 @@ export default async function CategoryPage({params}: {params: Promise<{slug: str
   const [{slug}, catalog] = await Promise.all([params, getCatalogData()]);
   const {categories, products} = catalog;
   const category = categories.find(item => item.slug === slug);
-  if (!category) notFound();
+
+  if (!category) {
+    if (catalog.source === 'fallback' || categories.length === 0) {
+      return (
+        <div className="catalog-empty" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'50vh',textAlign:'center',padding:'2rem'}}>
+          <LayoutTemplate aria-hidden="true" style={{width:'3rem',height:'3rem',marginBottom:'1rem',opacity:.4}} />
+          <h2>Category not available yet</h2>
+          <p style={{color:'#666',maxWidth:'400px'}}>We're setting up our catalog. Please check back soon.</p>
+          <Link href="/shop" style={{marginTop:'1rem',padding:'0.75rem 1.5rem',background:'var(--accent,#f0642f)',color:'#fff',borderRadius:'8px',textDecoration:'none',fontWeight:600}}>Browse all kits</Link>
+        </div>
+      );
+    }
+    notFound();
+  }
 
   const items = products.filter(product => product.categoryId === category.id);
   const actualFormats = [...new Set(items.flatMap(product => product.formats))];

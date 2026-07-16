@@ -6,7 +6,7 @@ import {
   type Collection,
   type Product,
 } from './data';
-import {hasSupabaseConfig} from './supabase/config';
+import {hasSupabaseConfig, getSupabaseUrl, getSupabasePublishableKey} from './supabase/config';
 import {getSupabasePublicClient} from './supabase/public';
 
 type CategoryRow = {
@@ -78,7 +78,15 @@ function publicFallback(): CatalogData {
 }
 
 export async function getCatalogData(): Promise<CatalogData> {
-  if (!hasSupabaseConfig()) return publicFallback();
+  if (!hasSupabaseConfig()) {
+    console.log('[catalog] No Supabase config found — using empty fallback');
+    return publicFallback();
+  }
+
+  const url = getSupabaseUrl();
+  const key = getSupabasePublishableKey();
+  const keyPrefix = key.slice(0, 16) + '...';
+  console.log(`[catalog] Supabase config found: url=${url}, key_prefix=${keyPrefix}`);
 
   try {
     const supabase = getSupabasePublicClient();
@@ -89,8 +97,11 @@ export async function getCatalogData(): Promise<CatalogData> {
       supabase.from('akl_media_assets').select('product_slug,asset_type,storage_path,public_url,status,created_at').neq('asset_type', 'Delivery').eq('status', 'Ready').order('created_at'),
     ]);
 
-    const error = categoryResult.error || collectionResult.error || productResult.error || mediaResult.error;
-    if (error) throw error;
+    const errors = [categoryResult.error, collectionResult.error, productResult.error, mediaResult.error].filter(Boolean);
+    if (errors.length > 0) {
+      console.error('[catalog] Supabase query errors:', errors.map(e => e!.message));
+      throw new Error(`Supabase errors: ${errors.map(e => e!.message).join('; ')}`);
+    }
 
     const categories = ((categoryResult.data || []) as CategoryRow[]).map(row => ({
       id: row.id,
@@ -154,9 +165,10 @@ export async function getCatalogData(): Promise<CatalogData> {
         } satisfies Product;
       });
 
+    console.log(`[catalog] Supabase returned: ${categories.length} categories, ${collections.length} collections, ${products.length} products`);
     return {products, categories, collections, source: 'supabase'};
   } catch (error) {
-    console.error('Supabase catalog fallback:', error instanceof Error ? error.message : error);
+    console.error('[catalog] Supabase fetch failed, using fallback:', error instanceof Error ? error.message : error);
     return publicFallback();
   }
 }

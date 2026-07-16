@@ -25,7 +25,20 @@ export default async function CollectionPage({params}: {params: Promise<{id: str
   const [{id}, catalog] = await Promise.all([params, getCatalogData()]);
   const {collections, products, categories} = catalog;
   const collection = collections.find(item => item.id === id);
-  if (!collection) notFound();
+
+  if (!collection) {
+    if (catalog.source === 'fallback' || collections.length === 0) {
+      return (
+        <div className="catalog-empty" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'50vh',textAlign:'center',padding:'2rem'}}>
+          <Layers3 aria-hidden="true" style={{width:'3rem',height:'3rem',marginBottom:'1rem',opacity:.4}} />
+          <h2>Collection not available yet</h2>
+          <p style={{color:'#666',maxWidth:'400px'}}>We're setting up our catalog. Please check back soon.</p>
+          <Link href="/shop" style={{marginTop:'1rem',padding:'0.75rem 1.5rem',background:'var(--accent,#f0642f)',color:'#fff',borderRadius:'8px',textDecoration:'none',fontWeight:600}}>Browse all kits</Link>
+        </div>
+      );
+    }
+    notFound();
+  }
   const items = products.filter(product => product.collectionId === collection.id);
   const categoryIds = new Set(items.map(item => item.categoryId));
   const includedCategories = categories.filter(category => categoryIds.has(category.id));
