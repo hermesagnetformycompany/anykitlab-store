@@ -1,20 +1,17 @@
 import {NextResponse} from 'next/server';
 import {getCatalogData} from '@/lib/catalog';
-import {hasSupabaseConfig, getSupabaseUrl, getSupabasePublishableKey} from '@/lib/supabase/config';
+import {hasSupabaseConfig} from '@/lib/supabase/config';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const hasConfig = hasSupabaseConfig();
-  const keyPrefix = hasConfig ? (getSupabasePublishableKey().slice(0, 16) + '...') : 'none';
-  const url = hasConfig ? getSupabaseUrl() : 'none';
-
   try {
     const catalog = await getCatalogData();
     return NextResponse.json({
       status: 'ok',
       source: catalog.source,
-      supabase: {configured: hasConfig, url, keyPrefix},
+      supabaseConfigured: hasConfig,
       counts: {
         categories: catalog.categories.length,
         collections: catalog.collections.length,
@@ -28,7 +25,7 @@ export async function GET() {
     return NextResponse.json({
       status: 'error',
       message: error instanceof Error ? error.message : String(error),
-      supabase: {configured: hasConfig, url, keyPrefix},
+      supabaseConfigured: hasConfig,
     }, {status: 500});
   }
 }

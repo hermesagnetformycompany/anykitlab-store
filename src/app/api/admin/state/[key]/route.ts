@@ -60,7 +60,7 @@ export async function GET(_request: NextRequest, {params}: {params: Promise<{key
       if (error) throw error;
       const categoryNames = new Map((categoryRows || []).map(row => [row.id, row.name]));
       return NextResponse.json({value: (rows || []).map(row => ({
-        id: row.id, slug: row.slug, title: row.title, categoryId: row.category_id,
+        id: row.id, slug: row.slug, title: row.title, categoryId: row.category_id || '',
         category: categoryNames.get(row.category_id) || 'Uncategorised', collectionId: row.collection_id || '',
         price: row.price, mrp: row.mrp, layoutCount: row.layout_count, count: `${row.layout_count}+ layouts`,
         description: row.description, long: row.long_description, accent: row.accent, dark: row.dark,
@@ -138,7 +138,7 @@ export async function PUT(request: NextRequest, {params}: {params: Promise<{key:
     if (key === 'templates') {
       const value = Array.isArray(body.value) ? body.value as Record<string, unknown>[] : [];
       const rows = value.map(item => ({
-        id: String(item.id), slug: String(item.slug), title: String(item.title), category_id: String(item.categoryId),
+        id: String(item.id), slug: String(item.slug), title: String(item.title), category_id: item.categoryId ? String(item.categoryId) : null,
         collection_id: item.collectionId ? String(item.collectionId) : null, price: Number(item.price), mrp: Number(item.mrp),
         layout_count: Number(item.layoutCount), description: String(item.description || ''), long_description: String(item.long || item.description || ''),
         accent: String(item.accent || '#f0642f'), dark: String(item.dark || '#191917'), badge: String(item.badge || ''),

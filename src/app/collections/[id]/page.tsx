@@ -32,7 +32,7 @@ export default async function CollectionPage({params}: {params: Promise<{id: str
         <div className="catalog-empty" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'50vh',textAlign:'center',padding:'2rem'}}>
           <Layers3 aria-hidden="true" style={{width:'3rem',height:'3rem',marginBottom:'1rem',opacity:.4}} />
           <h2>Collection not available yet</h2>
-          <p style={{color:'#666',maxWidth:'400px'}}>We're setting up our catalog. Please check back soon.</p>
+          <p style={{color:'#666',maxWidth:'400px'}}>We’re setting up our catalog. Please check back soon.</p>
           <Link href="/shop" style={{marginTop:'1rem',padding:'0.75rem 1.5rem',background:'var(--accent,#f0642f)',color:'#fff',borderRadius:'8px',textDecoration:'none',fontWeight:600}}>Browse all kits</Link>
         </div>
       );
@@ -61,7 +61,7 @@ export default async function CollectionPage({params}: {params: Promise<{id: str
           <div className="collection-stats"><b>{items.length}<small>{items.length === 1 ? 'Product' : 'Products'}</small></b><b>{includedCategories.length}<small>{includedCategories.length === 1 ? 'Category' : 'Categories'}</small></b><b>{layoutTotal}<small>Layouts</small></b></div>
           <div className="collection-promises"><span>● Published collection<small>Only available products are shown</small></span><span>◷ Verified delivery<small>Access follows payment review</small></span></div>
         </div>
-        <div className="collection-hero-art"><div className="collection-hero-placeholder"><Layers3 aria-hidden="true" /><strong>{collection.name}</strong><span>DIGITAL TEMPLATE COLLECTION</span></div><i><Sparkles aria-hidden="true" /></i></div>
+        <div className="collection-hero-art"><div className="collection-hero-placeholder">{collection.imageUrl ? <img src={collection.imageUrl} alt={`${collection.name} preview`} /> : <><Layers3 aria-hidden="true" /><strong>{collection.name}</strong><span>DIGITAL TEMPLATE COLLECTION</span></>}</div><i><Sparkles aria-hidden="true" /></i></div>
       </section>
       {includedCategories.length > 0 && <nav className="collection-categories" aria-label="Included categories"><b>Includes Categories:</b>{includedCategories.map(category => <Link key={category.id} href={`/categories/${category.slug}`}>{category.name}</Link>)}<Link href="/shop">View all categories →</Link></nav>}
       <section className="collection-products-section">

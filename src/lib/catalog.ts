@@ -5,8 +5,9 @@ import {
   type Category,
   type Collection,
   type Product,
+  type StoreSettings,
 } from './data';
-import {hasSupabaseConfig, getSupabaseUrl, getSupabasePublishableKey} from './supabase/config';
+import {hasSupabaseConfig} from './supabase/config';
 import {getSupabasePublicClient} from './supabase/public';
 
 type CategoryRow = {
@@ -16,6 +17,7 @@ type CategoryRow = {
   description: string;
   status: Category['status'];
   product_count: number;
+  image_url: string | null;
 };
 
 type CollectionRow = {
@@ -24,6 +26,7 @@ type CollectionRow = {
   description: string;
   status: Collection['status'];
   category_ids: string[];
+  image_url: string | null;
 };
 
 type ProductRow = {
@@ -59,7 +62,19 @@ export type CatalogData = {
   products: Product[];
   categories: Category[];
   collections: Collection[];
+  settings: StoreSettings;
   source: 'supabase' | 'fallback';
+};
+
+const defaultSettings: StoreSettings = {
+  storeName: 'AnyKit Lab',
+  supportEmail: 'hello@anykitlab.com',
+  upiId: '',
+  verificationSla: '12–24 hours',
+  senderName: 'AnyKit Lab Delivery',
+  heroImage1: '/reference/gym-kit.png',
+  heroImage2: '/reference/lash-kit.png',
+  heroImage3: '/reference/detail-kit.png',
 };
 
 function formatDate(value: string) {
@@ -74,7 +89,7 @@ function publicFallback(): CatalogData {
   const collections = fallbackCollections.filter(collection => collection.status === 'Published');
   const categoryIds = new Set(categories.map(category => category.id));
   const products = fallbackProducts.filter(product => product.status === 'Published' && categoryIds.has(product.categoryId));
-  return {products, categories, collections, source: 'fallback'};
+  return {products, categories, collections, settings: defaultSettings, source: 'fallback'};
 }
 
 export async function getCatalogData(): Promise<CatalogData> {
@@ -83,21 +98,17 @@ export async function getCatalogData(): Promise<CatalogData> {
     return publicFallback();
   }
 
-  const url = getSupabaseUrl();
-  const key = getSupabasePublishableKey();
-  const keyPrefix = key.slice(0, 16) + '...';
-  console.log(`[catalog] Supabase config found: url=${url}, key_prefix=${keyPrefix}`);
-
   try {
     const supabase = getSupabasePublicClient();
-    const [categoryResult, collectionResult, productResult, mediaResult] = await Promise.all([
-      supabase.from('akl_categories').select('id,slug,name,description,status,product_count').eq('status', 'Active').order('name'),
-      supabase.from('akl_collections').select('id,name,description,status,category_ids').eq('status', 'Published').order('name'),
+    const [categoryResult, collectionResult, productResult, mediaResult, settingsResult] = await Promise.all([
+      supabase.from('akl_categories').select('id,slug,name,description,status,product_count,image_url').eq('status', 'Active').order('name'),
+      supabase.from('akl_collections').select('id,name,description,status,category_ids,image_url').eq('status', 'Published').order('name'),
       supabase.from('akl_products').select('id,slug,title,category_id,collection_id,price,mrp,layout_count,description,long_description,cover_url,accent,dark,badge,status,formats,includes,updated_at').eq('status', 'Published').order('created_at'),
       supabase.from('akl_media_assets').select('product_slug,asset_type,storage_path,public_url,status,created_at').neq('asset_type', 'Delivery').eq('status', 'Ready').order('created_at'),
+      supabase.from('akl_site_settings').select('store_name,support_email,upi_id,verification_sla,sender_name,hero_image_1,hero_image_2,hero_image_3').eq('id', 'storefront').maybeSingle(),
     ]);
 
-    const errors = [categoryResult.error, collectionResult.error, productResult.error, mediaResult.error].filter(Boolean);
+    const errors = [categoryResult.error, collectionResult.error, productResult.error, mediaResult.error, settingsResult.error].filter(Boolean);
     if (errors.length > 0) {
       console.error('[catalog] Supabase query errors:', errors.map(e => e!.message));
       throw new Error(`Supabase errors: ${errors.map(e => e!.message).join('; ')}`);
@@ -110,6 +121,7 @@ export async function getCatalogData(): Promise<CatalogData> {
       description: row.description,
       status: row.status,
       productCount: row.product_count,
+      imageUrl: row.image_url || undefined,
     }));
     const categoryNames = new Map(categories.map(category => [category.id, category.name]));
     const categoryIds = new Set(categoryNames.keys());
@@ -119,7 +131,20 @@ export async function getCatalogData(): Promise<CatalogData> {
       description: row.description,
       status: row.status,
       categoryIds: row.category_ids || [],
+      imageUrl: row.image_url || undefined,
     }));
+
+    const settingsRow = settingsResult.data;
+    const settings: StoreSettings = settingsRow ? {
+      storeName: settingsRow.store_name,
+      supportEmail: settingsRow.support_email,
+      upiId: settingsRow.upi_id,
+      verificationSla: settingsRow.verification_sla,
+      senderName: settingsRow.sender_name,
+      heroImage1: settingsRow.hero_image_1 || defaultSettings.heroImage1,
+      heroImage2: settingsRow.hero_image_2 || defaultSettings.heroImage2,
+      heroImage3: settingsRow.hero_image_3 || defaultSettings.heroImage3,
+    } : defaultSettings;
 
     const mediaByProduct = new Map<string, {type: MediaRow['asset_type']; url: string}[]>();
     for (const row of (mediaResult.data || []) as MediaRow[]) {
@@ -166,7 +191,7 @@ export async function getCatalogData(): Promise<CatalogData> {
       });
 
     console.log(`[catalog] Supabase returned: ${categories.length} categories, ${collections.length} collections, ${products.length} products`);
-    return {products, categories, collections, source: 'supabase'};
+    return {products, categories, collections, settings, source: 'supabase'};
   } catch (error) {
     console.error('[catalog] Supabase fetch failed, using fallback:', error instanceof Error ? error.message : error);
     return publicFallback();

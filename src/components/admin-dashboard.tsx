@@ -96,6 +96,7 @@ function useAdminState<T>(key: string, initialValue: T) {
   const [loaded, setLoaded] = useState(false);
   const requestId = useRef(0);
   const skipNextSave = useRef(false);
+  const safeToSave = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -105,6 +106,7 @@ function useAdminState<T>(key: string, initialValue: T) {
         if (!response.ok) throw new Error(payload.error || `Unable to load ${key}.`);
         if (active && payload.value !== undefined) {
           skipNextSave.current = true;
+          safeToSave.current = true;
           setValue(payload.value);
         }
       })
@@ -114,7 +116,7 @@ function useAdminState<T>(key: string, initialValue: T) {
   }, [key]);
 
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !safeToSave.current) return;
     if (skipNextSave.current) {
       skipNextSave.current = false;
       return;
@@ -198,6 +200,10 @@ export function AdminDashboard() {
     const cover = form.get('cover') as File | null;
     const delivery = form.get('delivery') as File | null;
     const current = editingTemplate === 'new' || !editingTemplate ? null : editingTemplate;
+    if (!category) {
+      setToast('Create at least one category before adding a template.');
+      return;
+    }
     const slug = current?.slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     let coverName = current?.coverName || '';
     let deliveryName = current?.deliveryName || '';
@@ -220,7 +226,7 @@ export function AdminDashboard() {
       title,
       categoryId: category.id,
       category: category.name,
-      collectionId: String(form.get('collectionId')),
+      collectionId: String(form.get('collectionId') || ''),
       price: Number(form.get('price')),
       mrp: Number(form.get('mrp')),
       layoutCount: Number(form.get('layoutCount')),
@@ -378,7 +384,7 @@ export function AdminDashboard() {
 
 function Overview({templates, categories, media, orders, paidRevenue, customerCount, role, openTab, onSelectOrder}: {templates: AdminTemplate[]; categories: Category[]; media: AdminMedia[]; orders: AdminOrder[]; paidRevenue: number; customerCount: number; role: AdminRole; openTab: (tab: AdminTab) => void; onSelectOrder: (order: AdminOrder) => void}) {
   const pending = orders.filter(order => order.status === 'Pending verification');
-  const catalogIssues = templates.filter(template => !template.coverName || !template.deliveryName).length;
+  const catalogIssues = templates.filter(template => !template.coverUrl || !template.deliveryName).length;
   const canOrders = canAccessAdminTab(role, 'Orders');
   const canReports = canAccessAdminTab(role, 'Reports');
   const canTemplates = canAccessAdminTab(role, 'Templates');
@@ -398,7 +404,7 @@ function Overview({templates, categories, media, orders, paidRevenue, customerCo
         <div className="admin-order-list">{pending.length ? pending.slice(0, 4).map(order => <button type="button" key={order.id} onClick={() => onSelectOrder(order)}><span><b>{order.id}</b><small>{order.name} · {order.email}</small></span><span><b>{money(order.total)}</b><small>{order.reference}</small></span><em>Review</em></button>) : <Empty icon={CheckCircle2} title="Order queue is clear" copy="There are no payment references waiting for review." />}</div>
       </Panel>}
       {canTemplates && <Panel title="Catalog health">
-        <div className="admin-health-list"><span><b>Cover media assigned</b><em>{templates.filter(template => template.coverName).length} / {templates.length}</em></span><span><b>Delivery files assigned</b><em>{templates.filter(template => template.deliveryName).length} / {templates.length}</em></span><span className={catalogIssues ? 'warning' : ''}><b>Templates needing attention</b><em>{catalogIssues}</em></span><span><b>Media library assets</b><em>{media.length}</em></span></div>
+        <div className="admin-health-list"><span><b>Cover media assigned</b><em>{templates.filter(template => template.coverUrl).length} / {templates.length}</em></span><span><b>Delivery files assigned</b><em>{templates.filter(template => template.deliveryName).length} / {templates.length}</em></span><span className={catalogIssues ? 'warning' : ''}><b>Templates needing attention</b><em>{catalogIssues}</em></span><span><b>Media library assets</b><em>{media.length}</em></span></div>
       </Panel>}
     </div>
     <Panel title="Operations shortcuts"><div className="admin-shortcuts">{canTemplates && <button type="button" onClick={() => openTab('Templates')}><Boxes aria-hidden="true" /><span><b>Catalog</b><small>Add, edit, duplicate, archive or delete templates.</small></span><ChevronRight aria-hidden="true" /></button>}{canMedia && <button type="button" onClick={() => openTab('Media')}><UploadCloud aria-hidden="true" /><span><b>Media & delivery</b><small>Upload covers, previews, video and protected files.</small></span><ChevronRight aria-hidden="true" /></button>}{canTeam && <button type="button" onClick={() => openTab('Team')}><ShieldCheck aria-hidden="true" /><span><b>Staff permissions</b><small>Manage owner, catalog, payment and support roles.</small></span><ChevronRight aria-hidden="true" /></button>}{canOrders && <button type="button" onClick={() => openTab('Orders')}><ShoppingBag aria-hidden="true" /><span><b>Order operations</b><small>Verify references and send customer access.</small></span><ChevronRight aria-hidden="true" /></button>}</div></Panel>
@@ -449,8 +455,9 @@ function TeamView({team, setTeam, onAdd}: {team: AdminTeamMember[]; setTeam: Rea
 
 function ReportsView({orders, templates, categories, onExport}: {orders: AdminOrder[]; templates: AdminTemplate[]; categories: Category[]; onExport: () => void}) {
   const revenue = orders.filter(order => order.status !== 'Rejected').reduce((sum, order) => sum + order.total, 0);
-  const categoryStats = categories.map((category, index) => ({name: category.name, value: Math.max(18, 88 - index * 11)}));
-  return <><section className="admin-metric-grid report-metrics"><article><span>Total submitted revenue</span><b>{money(revenue)}</b><small>All non-rejected orders</small></article><article><span>Average order value</span><b>{money(Math.round(revenue / Math.max(orders.length, 1)))}</b><small>Across {orders.length} orders</small></article><article><span>Catalog size</span><b>{templates.length}</b><small>{templates.filter(template => template.status === 'Draft').length} templates in draft</small></article><article><span>Payment approval rate</span><b>{Math.round((orders.filter(order => order.status !== 'Pending verification' && order.status !== 'Rejected').length / Math.max(orders.length, 1)) * 100)}%</b><small>Verified or delivered</small></article></section><div className="admin-dashboard-grid"><Panel title="Sales by category"><div className="admin-bars">{categoryStats.map(stat => <div key={stat.name}><span><b>{stat.name}</b><em>{stat.value}%</em></span><i><b style={{width: `${stat.value}%`}} /></i></div>)}</div></Panel><Panel title="Generate report"><div className="admin-report-form"><label>From<input type="date" /></label><label>To<input type="date" /></label><button className="admin-primary" type="button" onClick={onExport}><Download aria-hidden="true" />Export order CSV</button></div></Panel></div></>;
+  const catalogTotal = Math.max(templates.length, 1);
+  const categoryStats = categories.map(category => {const count = templates.filter(template => template.categoryId === category.id).length; return {name: category.name, count, value: Math.round((count / catalogTotal) * 100)};});
+  return <><section className="admin-metric-grid report-metrics"><article><span>Total submitted revenue</span><b>{money(revenue)}</b><small>All non-rejected orders</small></article><article><span>Average order value</span><b>{money(Math.round(revenue / Math.max(orders.length, 1)))}</b><small>Across {orders.length} orders</small></article><article><span>Catalog size</span><b>{templates.length}</b><small>{templates.filter(template => template.status === 'Draft').length} templates in draft</small></article><article><span>Payment approval rate</span><b>{Math.round((orders.filter(order => order.status !== 'Pending verification' && order.status !== 'Rejected').length / Math.max(orders.length, 1)) * 100)}%</b><small>Verified or delivered</small></article></section><div className="admin-dashboard-grid"><Panel title="Catalog by category"><div className="admin-bars">{categoryStats.map(stat => <div key={stat.name}><span><b>{stat.name}</b><em>{stat.count} kit{stat.count === 1 ? '' : 's'}</em></span><i><b style={{width: `${stat.value}%`}} /></i></div>)}</div></Panel><Panel title="Generate report"><div className="admin-report-form"><label>From<input type="date" /></label><label>To<input type="date" /></label><button className="admin-primary" type="button" onClick={onExport}><Download aria-hidden="true" />Export order CSV</button></div></Panel></div></>;
 }
 
 function SettingsView({settings, onSave}: {settings: StoreSettings; onSave: (event: FormEvent<HTMLFormElement>) => void}) {
@@ -458,7 +465,7 @@ function SettingsView({settings, onSave}: {settings: StoreSettings; onSave: (eve
 }
 
 function TemplateEditor({template, categories, collections, onClose, onSave}: {template: AdminTemplate | null; categories: Category[]; collections: Collection[]; onClose: () => void; onSave: (event: FormEvent<HTMLFormElement>) => void}) {
-  return <div className="admin-drawer-backdrop" role="presentation"><section className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="template-editor-title"><header><div><span>TEMPLATE CATALOG</span><h2 id="template-editor-title">{template ? 'Edit template' : 'Add a new template'}</h2></div><button type="button" onClick={onClose} aria-label="Close template editor"><X aria-hidden="true" /></button></header><form className="template-editor-form" onSubmit={onSave}><label className="wide">Template title<input required name="title" defaultValue={template?.title} /></label><label>Category<select required name="categoryId" defaultValue={template?.categoryId || categories[0]?.id}>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><label>Collection<select required name="collectionId" defaultValue={template?.collectionId || collections[0]?.id}>{collections.map(collection => <option key={collection.id} value={collection.id}>{collection.name}</option>)}</select></label><label>Price<input required name="price" type="number" min="0" defaultValue={template?.price || 699} /></label><label>Compare-at price<input required name="mrp" type="number" min="0" defaultValue={template?.mrp || 1299} /></label><label>Layouts<input required name="layoutCount" type="number" min="1" defaultValue={template?.layoutCount || 60} /></label><label>Status<select name="status" defaultValue={template?.status || 'Draft'}><option>Draft</option><option>Published</option><option>Archived</option></select></label><label className="wide">Badge<input name="badge" defaultValue={template?.badge || 'NEW'} /></label><label className="wide">Short description<textarea required name="description" rows={5} defaultValue={template?.description} /></label><label className="file-field"><ImageIcon aria-hidden="true" /><span><b>Cover visual</b><small>{template?.coverName || 'No cover uploaded yet'}</small>{template?.coverUrl && <img src={template.coverUrl} alt="Current cover" style={{width: '100%', maxHeight: '120px', objectFit: 'cover', borderRadius: '4px', marginTop: '6px'}} />}</span><input name="cover" type="file" accept="image/*" /></label><label className="file-field"><FileArchive aria-hidden="true" /><span><b>Delivery file</b><small>{template?.deliveryName || 'No delivery file uploaded yet'}</small></span><input name="delivery" type="file" accept=".zip,.pdf" /></label><footer><button type="button" onClick={onClose}>Cancel</button><button className="admin-primary" type="submit"><Save aria-hidden="true" />{template ? 'Save changes' : 'Create template'}</button></footer></form></section></div>;
+  return <div className="admin-drawer-backdrop" role="presentation"><section className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="template-editor-title"><header><div><span>TEMPLATE CATALOG</span><h2 id="template-editor-title">{template ? 'Edit template' : 'Add a new template'}</h2></div><button type="button" onClick={onClose} aria-label="Close template editor"><X aria-hidden="true" /></button></header><form className="template-editor-form" onSubmit={onSave}><label className="wide">Template title<input required name="title" defaultValue={template?.title} /></label><label>Category<select required name="categoryId" defaultValue={template?.categoryId || categories[0]?.id}>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><label>Collection<select name="collectionId" defaultValue={template?.collectionId || ''}><option value="">No collection</option>{collections.map(collection => <option key={collection.id} value={collection.id}>{collection.name}</option>)}</select></label><label>Price<input required name="price" type="number" min="0" defaultValue={template?.price || 699} /></label><label>Compare-at price<input required name="mrp" type="number" min="0" defaultValue={template?.mrp || 1299} /></label><label>Layouts<input required name="layoutCount" type="number" min="1" defaultValue={template?.layoutCount || 60} /></label><label>Status<select name="status" defaultValue={template?.status || 'Draft'}><option>Draft</option><option>Published</option><option>Archived</option></select></label><label className="wide">Badge<input name="badge" defaultValue={template?.badge || 'NEW'} /></label><label className="wide">Short description<textarea required name="description" rows={5} defaultValue={template?.description} /></label><label className="file-field"><ImageIcon aria-hidden="true" /><span><b>Cover visual</b><small>{template?.coverName || 'No cover uploaded yet'}</small>{template?.coverUrl && <img src={template.coverUrl} alt="Current cover" style={{width: '100%', maxHeight: '120px', objectFit: 'cover', borderRadius: '4px', marginTop: '6px'}} />}</span><input name="cover" type="file" accept="image/*" /></label><label className="file-field"><FileArchive aria-hidden="true" /><span><b>Delivery file</b><small>{template?.deliveryName || 'No delivery file uploaded yet'}</small></span><input name="delivery" type="file" accept=".zip,.pdf" /></label><footer><button type="button" onClick={onClose}>Cancel</button><button className="admin-primary" type="submit"><Save aria-hidden="true" />{template ? 'Save changes' : 'Create template'}</button></footer></form></section></div>;
 }
 
 function OrderDrawer({order, onClose, onUpdate}: {order: AdminOrder; onClose: () => void; onUpdate: (id: string, status: AdminOrderStatus) => void}) {
