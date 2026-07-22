@@ -626,14 +626,15 @@ main {
 
 .home-product-image .reference-art {
   height: 100%;
-  aspect-ratio: auto;
+  aspect-ratio: 1;
+}
+.home-product-image img {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
 }
 
 .home-product-copy {
-  padding: 7px;
-}
-
-.home-product-copy h3 {
   min-height: 25px;
   margin: 0 0 3px;
   font-family: var(--font-body), sans-serif;
