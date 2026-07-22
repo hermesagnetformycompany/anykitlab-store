@@ -268,7 +268,7 @@ button, input, select, textarea { font: inherit; }
 
 /* Product */
 .product-main { padding: 6px clamp(30px, 4.5vw, 58px) 12px; display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 24px; }
-.product-feature-image { position: relative; aspect-ratio: 1.35; overflow: hidden; border: 1px solid var(--line); border-radius: 6px; background: #eee9df; }
+.product-feature-image { position: relative; aspect-ratio: 1; overflow: hidden; border: 1px solid var(--line); border-radius: 6px; background: #eee9df; }
 .product-feature-image img { object-fit: cover; }
 .product-feature-image button { position: absolute; right: 10px; top: 10px; min-height: 28px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; background: white; font-size: 14px; }
 .product-thumbnails { margin-top: 7px; display: grid; grid-template-columns: repeat(4, 1fr) 0.65fr; gap: 6px; }
