@@ -619,7 +619,7 @@ main {
 .home-product-image {
   position: relative;
   display: block;
-  aspect-ratio: 1.58;
+  aspect-ratio: 1;
   overflow: hidden;
   background: #ece7dc;
 }

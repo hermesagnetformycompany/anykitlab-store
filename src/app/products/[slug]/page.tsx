@@ -48,7 +48,7 @@ export default async function ProductPage({params}: {params: Promise<{slug: stri
     productJsonLd({title: product.title, description: product.description, price: product.price, mrp: product.mrp, slug: product.slug, category: product.category, includes: included}),
     breadcrumbJsonLd([
       {name: 'Home', url: SITE_URL},
-      {name: 'Templates', url: `${SITE_URL}/shop`},
+      {name: 'Shop', url: `${SITE_URL}/shop`},
       {name: product.category, url: `${SITE_URL}/categories/${catalog.categories.find(category => category.id === product.categoryId)?.slug || ''}`},
       {name: product.title, url: `${SITE_URL}/products/${product.slug}`},
     ]),
@@ -92,11 +92,11 @@ export default async function ProductPage({params}: {params: Promise<{slug: stri
   return (
     <div className="product-page">
       <script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(structuredData)}} />
-      <div className="breadcrumbs"><Link href="/">Home</Link><b>›</b><Link href="/shop">Templates</Link><b>›</b><span>{product.category}</span><b>›</b><span>{product.title}</span></div>
+      <div className="breadcrumbs"><Link href="/">Home</Link><b>›</b><Link href="/shop">Shop</Link><b>›</b><Link href={`/categories/${catalog.categories.find(category => category.id === product.categoryId)?.slug || ''}`}>{product.category}</Link><b>›</b><span>{product.title}</span></div>
       <section className="product-main">
         <div className="product-gallery-shell"><ProductGallery product={product} /><WishlistButton slug={product.slug} /></div>
         <div className="product-summary">
-          <span className="product-type">Templates <b>•</b> {product.category}</span>
+          <span className="product-type"><b>•</b> {product.category}</span>
           <h1>{product.title}</h1>
           <p>{description}</p>
           <div className="product-price"><strong>{money(product.price)}</strong>{product.mrp > product.price && <><s>{money(product.mrp)}</s><b>{discount}% OFF</b></>}</div>
@@ -107,7 +107,7 @@ export default async function ProductPage({params}: {params: Promise<{slug: stri
       </section>
 
       <section className="product-highlights">
-        <div><h2>Product Highlights</h2><ul>{[`${product.layoutCount}+ editable layouts`, ...product.formats].map(item => <li key={item}>▧ {item}</li>)}</ul></div>
+        <div><h2>Product Highlights</h2><ul>{(product.includes.length ? product.includes : [`${product.layoutCount}+ editable layouts`]).map(item => <li key={item}>✓ {item}</li>)}</ul></div>
         <div><h2>What&apos;s Inside</h2><ul>{included.map(item => <li key={item}>✓ {item}</li>)}</ul></div>
         <div><h2>Before You Buy</h2><ul><li>◇ Review the listed formats and included files</li><li>◇ This is a digital product with no physical shipping</li><li>◇ Editable source files cannot be resold or redistributed</li></ul></div>
       </section>

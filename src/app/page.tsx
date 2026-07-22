@@ -94,7 +94,7 @@ export default async function Home() {
         {products.length > 0 ? <div className="featured-grid">
           {products.slice(0, 6).map(product => <article className="home-product" key={product.slug}>
             <Link className="home-product-image" href={`/products/${product.slug}`}><ProductArt p={product} /></Link>
-            <div className="home-product-copy"><Link href={`/products/${product.slug}`}><h3>{product.title}</h3></Link><span>{product.layoutCount}+ Layouts</span><strong>{money(product.price)}</strong><div><Link className="view-kit" href={`/products/${product.slug}`}>View Kit</Link><AddButton slug={product.slug} label="Add to Cart" /></div></div>
+            <div className="home-product-copy"><Link href={`/products/${product.slug}`}><h3>{product.title}</h3></Link><span>{product.formats.length ? product.formats.join(', ') : `${product.layoutCount}+ Layouts`}</span><strong>{money(product.price)}</strong><div><Link className="view-kit" href={`/products/${product.slug}`}>View Kit</Link><AddButton slug={product.slug} label="Add to Cart" /></div></div>
           </article>)}
         </div> : <p className="home-empty-message">Published template kits will appear here once they are available.</p>}
       </section>
