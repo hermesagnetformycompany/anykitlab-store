@@ -247,6 +247,221 @@
 .confirmation-columns h2 { font-size: 16px; }
 .confirmation-order > span strong { font-size: 12px; }
 
+
+/* === Storefront-wide legibility and sizing fixes ===
+   The original CSS was authored at a microscopic scale (5-10px).
+   These overrides bring every customer-facing surface to readable sizes
+   without changing the layout structure. Append before reduced-motion. */
+
+/* Header navigation */
+.store-header > nav > a,
+.store-nav-item > button,
+.store-actions a { font-size: 14px; }
+.store-search input { font-size: 13px; }
+.store-search { height: 40px; }
+.brand-name { font-size: 28px; }
+.brand-lockup small { font-size: 8px; }
+
+/* Hero section */
+.hero-stamp { font-size: 12px; padding: 8px 14px; }
+.hero-copy h1 { font-size: clamp(36px, 4.5vw, 54px); }
+.hero-copy > p { font-size: 15px; line-height: 1.6; max-width: 46ch; }
+.primary-action, .secondary-action { min-height: 48px; padding: 0 24px; font-size: 14px; }
+.hero-visual { min-height: 380px; }
+.hero-visual > p { font-size: 13px; line-height: 1.5; }
+.quality-seal { width: 88px; height: 88px; }
+.quality-seal span { font-size: 8px; }
+.quality-seal svg { width: 26px; height: 26px; }
+.placeholder-stack > span { padding: 22px 14px; }
+.placeholder-stack small { font-size: 9px; }
+.placeholder-stack b { font-size: 26px; }
+.placeholder-stack > span::after { font-size: 7px; }
+.hero-benefits span { font-size: 13px; }
+.hero-benefits svg { width: 20px; height: 20px; }
+
+/* Section headings */
+.block-heading h2 { font-size: 28px; }
+.block-heading > a { font-size: 14px; }
+
+/* Featured product grid */
+.featured-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.home-product { border-radius: 8px; }
+.home-product-image { aspect-ratio: 4 / 3; }
+.home-product-copy { padding: 14px; }
+.home-product-copy h3 { font-size: 15px; min-height: 42px; line-height: 1.3; }
+.home-product-copy > span { font-size: 13px; margin-bottom: 6px; }
+.home-product-copy > strong { font-size: 16px; margin-bottom: 10px; }
+.home-product-copy > div { grid-template-columns: 1fr 1fr; gap: 8px; }
+.view-kit, .home-product .kit-btn { min-height: 40px; font-size: 13px; border-radius: 5px; }
+
+/* Category grid */
+.category-grid > a { min-height: 64px; padding: 12px 14px; }
+.category-grid b { font-size: 14px; }
+.line-icon { width: 32px; height: 32px; }
+.line-icon svg { width: 18px; height: 18px; }
+
+/* Collection grid */
+.collection-grid { gap: 16px; }
+.collection-grid > a { height: auto; min-height: 120px; }
+.collection-grid > a > div { padding: 16px 0 12px 16px; }
+.collection-grid h3 { font-size: 18px; }
+.collection-grid p { font-size: 13px; line-height: 1.45; margin-bottom: 10px; }
+.collection-grid span { font-size: 13px; }
+.collection-placeholder { padding: 16px !important; }
+.collection-placeholder svg { width: 32px; height: 32px; }
+.collection-placeholder small { font-size: 9px; }
+
+/* Delivery steps */
+.delivery-step h3 { font-size: 14px; margin-top: 18px; }
+.delivery-step p { font-size: 12px; line-height: 1.5; max-width: 140px; }
+.step-mark { width: 60px; height: 60px; }
+.step-mark > b { font-size: 11px; }
+.delivery-grid::before { top: 34px; }
+
+/* Value ribbon */
+.value-ribbon > div { padding: 0 12px; }
+.value-ribbon > div > svg { width: 22px; height: 22px; }
+.value-ribbon strong { font-size: 14px; }
+.value-ribbon small { font-size: 12px; line-height: 1.4; }
+
+/* Testimonial / value cards */
+.testimonial-card { padding: 24px 18px; }
+.testimonial-card .card-icon { width: 48px; height: 48px; }
+.testimonial-card .card-icon svg { width: 24px; height: 24px; }
+.testimonial-card h3 { font-size: 16px; margin-bottom: 10px; }
+.testimonial-card p { font-size: 14px; line-height: 1.6; }
+
+/* FAQ section */
+.reference-home .faq details { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.reference-home .faq summary { font-size: 15px; font-weight: 600; }
+.reference-home .faq details p { font-size: 14px; line-height: 1.6; padding: 8px 0; }
+.reference-home .faq > a { font-size: 14px; }
+
+/* Footer */
+.store-footer .footer-brand p { font-size: 13px; line-height: 1.5; max-width: 240px; }
+.store-footer .footer-group > b { font-size: 14px; }
+.store-footer .footer-group a { font-size: 13px; }
+.footer-copy { font-size: 12px; }
+.social-links a { width: 28px; height: 28px; }
+.social-links svg { width: 14px; height: 14px; }
+.footer-brand .brand-name { font-size: 24px; }
+
+/* Product page */
+.breadcrumbs { font-size: 14px; padding: 14px clamp(30px, 4.5vw, 58px) 8px; }
+.product-main { padding: 16px clamp(30px, 4.5vw, 58px) 20px; gap: 32px; }
+.product-summary { padding-top: 8px; }
+.product-type { font-size: 14px; }
+.product-summary h1 { font-size: 32px; margin: 10px 0 8px; }
+.product-summary > p { font-size: 14px; line-height: 1.6; }
+.product-price strong { font-size: 26px; }
+.product-price s { font-size: 15px; }
+.product-price b { font-size: 14px; padding: 5px 10px; }
+.product-availability { font-size: 14px; }
+.product-service-row { padding: 12px 0; }
+.product-service-row span { font-size: 13px; gap: 7px; }
+.product-service-row small { font-size: 13px; }
+
+/* Product highlights */
+.product-highlights { padding: 16px 0; gap: 28px; }
+.product-highlights h2 { font-size: 18px; margin-bottom: 12px; }
+.product-highlights ul { columns: 1; }
+.product-highlights li { font-size: 14px; line-height: 1.5; margin-bottom: 8px; }
+
+/* Product tabs */
+.product-details-tabs { padding: 16px clamp(30px, 4.5vw, 58px); }
+.product-details-tabs > nav button { font-size: 14px; min-height: 44px; }
+.product-description { padding: 16px 0; grid-template-columns: 1fr 280px; gap: 40px; }
+.product-description p, .product-description li { font-size: 14px; line-height: 1.6; }
+.product-description aside { padding: 14px; }
+.product-description aside h3 { font-size: 14px; }
+.product-description aside span { font-size: 13px; }
+
+/* Recommended products */
+.recommended-products h2 { font-size: 20px; }
+.recommended-products > div:first-child a { font-size: 14px; }
+.recommended-products img { height: 90px; }
+.recommended-products strong { font-size: 14px; }
+.recommended-products span { font-size: 13px; }
+
+/* Catalog / shop page */
+.catalog-intro h1 { font-size: 36px; }
+.catalog-intro p { font-size: 14px; line-height: 1.6; }
+.catalog-stamps span { font-size: 14px; }
+.catalog-stamps b { width: 60px; height: 60px; font-size: 20px; }
+.catalog-filters, .category-filters { font-size: 14px; }
+.catalog-filters input[type='checkbox'],
+.catalog-filters input[type='radio'],
+.category-filters input[type='checkbox'] { width: 16px; height: 16px; }
+.filter-search input { height: 40px; font-size: 14px; }
+.catalog-filters label, .category-filters label { font-size: 14px; gap: 8px; }
+.results-bar strong { font-size: 16px; }
+.results-bar label { font-size: 14px; }
+.results-bar select { height: 36px; font-size: 14px; }
+.catalog-products { gap: 18px; }
+.catalog-assurances span { font-size: 13px; }
+.catalog-assurances b { font-size: 14px; }
+.catalog-assurances small { font-size: 12px; }
+
+/* Category page */
+.standard-listing-head h1 { font-size: 36px; }
+.standard-listing-head p { font-size: 14px; line-height: 1.6; }
+.category-hero-copy > span { font-size: 14px; }
+.category-hero-copy h1 { font-size: 36px; }
+.category-hero-copy p { font-size: 14px; line-height: 1.6; }
+.category-stats b { font-size: 18px; }
+.category-stats small { font-size: 13px; }
+.category-hero-art span { font-size: 13px; }
+.fitness-card h3 { font-size: 14px; }
+.fitness-card > span { font-size: 13px; }
+.fitness-card > strong { font-size: 14px; }
+.fitness-card > small { font-size: 12px; }
+.fitness-card .view-kit, .fitness-card .kit-btn { min-height: 36px; font-size: 13px; }
+
+/* Collection page */
+.collection-hero h1 { font-size: 36px; }
+.collection-hero p { font-size: 14px; line-height: 1.6; }
+.collection-stats b { font-size: 18px; }
+.collection-stats small { font-size: 13px; }
+.collection-promises span { font-size: 14px; }
+.collection-promises small { font-size: 12px; }
+.collection-products-head h2 { font-size: 22px; }
+.collection-products .card-info h3 { font-size: 15px; }
+.collection-products .view-kit, .collection-products .kit-btn { min-height: 34px; font-size: 12px; }
+.collection-why h2 { font-size: 20px; }
+.collection-why b { font-size: 14px; }
+.collection-why small { font-size: 12px; line-height: 1.4; }
+
+/* Account page */
+.account-sidebar h2 { font-size: 16px; }
+.account-sidebar nav a { font-size: 14px; padding: 12px 10px; }
+
+/* Cart */
+.cart-line-copy h3 { font-size: 15px; }
+.cart-line-copy span { font-size: 13px; }
+.cart-line-price > strong { font-size: 15px; }
+.cart-summary > div { font-size: 14px; }
+.cart-summary .cart-total { font-size: 20px; }
+
+/* Card components */
+.card-info { padding: 12px; }
+.card-category { font-size: 13px; }
+.card-info h3 { font-size: 15px; min-height: 36px; }
+.card-info p { font-size: 13px; line-height: 1.4; }
+.card-info > strong { font-size: 14px; }
+.card-meta { font-size: 13px; }
+.view-kit, .kit-btn, .outline-btn { min-height: 36px; border-radius: 5px; font-size: 13px; }
+
+/* Responsive: scale featured grid at medium screens */
+@media (max-width: 1100px) {
+  .featured-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .featured-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .product-highlights { grid-template-columns: 1fr; gap: 20px; }
+  .product-description { grid-template-columns: 1fr; }
+  .product-description aside { border-left: 0; border-top: 1px solid var(--line); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto !important; }
   *,

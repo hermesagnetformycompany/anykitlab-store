@@ -65,6 +65,7 @@ export default async function Home() {
   const {products, categories, collections, settings} = await getCatalogData();
   const heroImages = [settings.heroImage1, settings.heroImage2, settings.heroImage3].filter((value): value is string => Boolean(value));
   const usesBundledOgHero = heroImages.length === 3 && heroImages.every(src => src.startsWith('/reference/'));
+  const hasRealHeroImages = heroImages.length > 0 && !usesBundledOgHero;
   const homeFaqs = faqs.map(([question, answer]) => ({question, answer}));
   const structuredData = [organizationJsonLd(), websiteJsonLd(), faqJsonLd(homeFaqs)];
 
@@ -79,7 +80,7 @@ export default async function Home() {
           <div className="hero-actions"><Link className="primary-action" href="/shop">Shop All Kits <span>→</span></Link><Link className="secondary-action" href="/collections/col-launch">Explore Starter Kits</Link></div>
         </div>
         <div className="hero-visual" aria-label="Featured AnyKit Lab template kits">
-          {usesBundledOgHero ? <img className="hero-og-art" src="/reference/hero-kits.png" alt="AnyKit Lab template kit collection" /> : <div className="placeholder-stack hero-product-covers">{heroImages.map((src, index) => <span key={src}><img src={src} alt={`Featured AnyKit Lab kit ${index + 1}`} /></span>)}</div>}
+          {usesBundledOgHero ? <img className="hero-og-art" src="/reference/hero-kits.png" alt="AnyKit Lab template kit collection" /> : hasRealHeroImages ? <div className="placeholder-stack hero-product-covers">{heroImages.map((src, index) => <span key={src}><img src={src} alt={`Featured AnyKit Lab kit ${index + 1}`} /></span>)}</div> : <div className="placeholder-stack hero-product-covers"><span><small>FEATURED KIT</small><b>Canva Templates</b></span><span><small>EDITABLE KITS</small><b>Instagram Packs</b></span><span><small>READY TO LAUNCH</small><b>Business Assets</b></span></div>}
           <div className="quality-seal"><Sparkles aria-hidden="true" /><span>MADE TO EDIT<br />BUILT TO GROW</span></div>
           <p>Professional template systems for real businesses.<br />Choose a kit, customise it, and launch faster.</p>
         </div>
