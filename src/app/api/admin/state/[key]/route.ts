@@ -15,6 +15,12 @@ function canWrite(role: AdminRole, key: string) {
   if (role === 'Payment reviewer') return key === 'orders';
   return false;
 }
+function canRead(role: AdminRole, key: string) {
+  if (role === 'Owner') return true;
+  if (role === 'Catalog manager') return ['templates', 'categories', 'collections', 'media'].includes(key);
+  if (role === 'Payment reviewer' || role === 'Support') return key === 'orders';
+  return false;
+}
 
 async function removeMissing(table: string, currentIds: string[], nextIds: string[]) {
   const admin = getSupabaseAdminClient();
@@ -49,6 +55,7 @@ export async function GET(_request: NextRequest, {params}: {params: Promise<{key
   if (!adminUser) return forbidden();
   const {key} = await params;
   if (!allowedKeys.has(key)) return NextResponse.json({error: 'Unknown admin data set.'}, {status: 404});
+  if (!canRead(adminUser.role, key)) return forbidden();
   const admin = getSupabaseAdminClient();
 
   try {
@@ -131,6 +138,9 @@ export async function PUT(request: NextRequest, {params}: {params: Promise<{key:
   const {key} = await params;
   if (!allowedKeys.has(key)) return NextResponse.json({error: 'Unknown admin data set.'}, {status: 404});
   if (!canWrite(adminUser.role, key)) return forbidden();
+  if (['templates', 'categories', 'collections', 'orders'].includes(key)) {
+    return NextResponse.json({error: 'Bulk catalog and order writes are disabled. Use the validated resource mutation endpoint.'}, {status: 405});
+  }
   const body = await request.json() as {value?: unknown};
   const admin = getSupabaseAdminClient();
 
@@ -171,18 +181,7 @@ export async function PUT(request: NextRequest, {params}: {params: Promise<{key:
       if (rows.length) { const {error} = await admin.from('akl_media_assets').upsert(rows); if (error) throw error; }
       await removeMissing('akl_media_assets', (current || []).map(item => item.id), rows.map(item => item.id));
     } else if (key === 'orders') {
-      const value = Array.isArray(body.value) ? body.value as Record<string, unknown>[] : [];
-      for (const item of value) {
-        const orderNumber = String(item.id);
-        const status = String(item.status);
-        const {data: order, error} = await admin.from('akl_orders').update({status}).eq('order_number', orderNumber).select('id,user_id').maybeSingle();
-        if (error) throw error;
-        if (order?.user_id && status === 'Access sent') {
-          const {data: orderItems} = await admin.from('akl_order_items').select('product_id').eq('order_id', order.id);
-          const grants = (orderItems || []).flatMap(orderItem => orderItem.product_id ? [{user_id: order.user_id, product_id: orderItem.product_id, order_id: order.id}] : []);
-          if (grants.length) { const {error: grantError} = await admin.from('akl_product_access').upsert(grants); if (grantError) throw grantError; }
-        }
-      }
+      return NextResponse.json({error: 'Bulk order writes are disabled. Use the authenticated order mutation endpoint.'}, {status: 405});
     } else if (key === 'team') {
       const value = Array.isArray(body.value) ? body.value as Record<string, unknown>[] : [];
       const submittedIds: string[] = [];

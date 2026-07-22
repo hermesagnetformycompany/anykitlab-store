@@ -7,39 +7,40 @@ import {money} from '@/lib/data';
 import {cartTotal, useStore} from '@/lib/store';
 
 export default function Cart() {
-  const {cart, products, setQty, remove} = useStore();
+  const {ready, cart, products, setQty, remove} = useStore();
   const subtotal = cartTotal(cart, products);
-  const discount = cart.length >= 3 ? 299 : 0;
-  const total = subtotal - discount;
+  const total = subtotal;
+  const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
 
   return (
     <div className="cart-page">
-      <div className="breadcrumbs"><span>Home</span><b>›</b><span>Cart</span></div>
+      <nav className="breadcrumbs" aria-label="Breadcrumb"><Link href="/">Home</Link><b aria-hidden="true">›</b><span aria-current="page">Cart</span></nav>
       <header className="simple-page-title"><h1>Your Cart</h1><p>Review your selected template kits before checkout.</p></header>
-      {!cart.length ? (
+      <p className="sr-only" aria-live="polite" aria-atomic="true">{ready ? `${itemCount} ${itemCount === 1 ? 'item' : 'items'} in your cart.` : 'Loading your cart.'}</p>
+      {!ready ? (
+        <section className="empty-cart" aria-busy="true"><ShoppingCart aria-hidden="true" /><h2>Loading your cart…</h2><p>Restoring your saved template kits.</p></section>
+      ) : !cart.length ? (
         <section className="empty-cart"><ShoppingCart aria-hidden="true" /><h2>Your cart is waiting.</h2><p>Choose a ready-made kit and come back when you&apos;re ready.</p><Link className="primary-action" href="/shop">Explore template kits →</Link></section>
       ) : (
         <>
           <div className="cart-grid">
             <section className="cart-items-card">
-              <h2>{cart.reduce((sum, item) => sum + item.qty, 0)} Items in Cart</h2>
+              <h2>{itemCount} {itemCount === 1 ? 'Item' : 'Items'} in Cart</h2>
               {cart.map(item => {
                 const product = products.find(candidate => candidate.slug === item.slug);
                 if (!product) return null;
                 return (
                   <article className="cart-line" key={item.slug}>
                     <Link href={`/products/${product.slug}`} className="cart-line-image"><ProductArt p={product} compact /></Link>
-                    <div className="cart-line-copy"><h3>{product.title}</h3><span>▧ {product.category}</span><button type="button" onClick={() => remove(item.slug)}>♧ Remove</button></div>
-                    <div className="cart-line-price"><strong>{money(product.price)}</strong><div><button type="button" onClick={() => setQty(item.slug, item.qty - 1)}>−</button><b>{item.qty}</b><button type="button" onClick={() => setQty(item.slug, item.qty + 1)}>+</button></div><strong>{money(product.price * item.qty)}</strong></div>
+                    <div className="cart-line-copy"><h3>{product.title}</h3><span>▧ {product.category}</span><button type="button" aria-label={`Remove ${product.title} from cart`} onClick={() => remove(item.slug)}>♧ Remove</button></div>
+                    <div className="cart-line-price"><strong>{money(product.price)}</strong><div><button type="button" aria-label={`Decrease quantity of ${product.title}`} onClick={() => setQty(item.slug, item.qty - 1)}>−</button><b aria-live="polite" aria-atomic="true">{item.qty}</b><button type="button" aria-label={`Increase quantity of ${product.title}`} onClick={() => setQty(item.slug, item.qty + 1)}>+</button></div><strong>{money(product.price * item.qty)}</strong></div>
                   </article>
                 );
               })}
-              <div className="coupon-row"><span>◇ Have a coupon code?</span><label><input placeholder="Enter coupon code" /><button type="button">Apply Coupon</button></label></div>
             </section>
             <aside className="cart-summary">
               <h2>Order Summary</h2>
-              <div><span>Subtotal ({cart.reduce((sum, item) => sum + item.qty, 0)} items)</span><b>{money(subtotal)}</b></div>
-              {discount > 0 && <div className="discount"><span>Discount</span><b>−{money(discount)}</b></div>}
+              <div><span>Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span><b>{money(subtotal)}</b></div>
               <div className="cart-total"><span>Total</span><b>{money(total)}</b></div>
               <small>Inclusive of all taxes</small>
               <Link className="checkout-button" href="/checkout">▣ Proceed to Checkout</Link>

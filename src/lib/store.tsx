@@ -11,7 +11,7 @@ export type Order = {
   id: string;
   date: string;
   total: number;
-  status: 'Pending verification' | 'Verified' | 'Access sent' | 'Rejected';
+  status: 'Awaiting payment' | 'Pending verification' | 'Verified' | 'Access sent' | 'Rejected';
   reference: string;
   items: CartItem[];
   name: string;
@@ -32,7 +32,7 @@ type Store = {
   remove: (slug: string) => void;
   setQty: (slug: string, qty: number) => void;
   clear: () => void;
-  place: (order: Omit<Order, 'id' | 'date' | 'status'>) => Promise<Order>;
+  recordOrder: (order: Order) => void;
   signIn: (email: string, password: string) => Promise<AuthResult>;
   register: (customer: Customer, password: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
@@ -47,7 +47,7 @@ type OrderRow = {
   customer_email: string;
   customer_phone?: string;
   total: number;
-  payment_reference: string;
+  payment_reference: string | null;
   status: Order['status'];
   created_at: string;
   akl_order_items?: {product_slug: string; quantity: number}[];
@@ -71,7 +71,7 @@ function mapOrder(row: OrderRow): Order {
     date: new Date(row.created_at).toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'}),
     total: row.total,
     status: row.status,
-    reference: row.payment_reference,
+    reference: row.payment_reference || '',
     items: (row.akl_order_items || []).map(item => ({slug: item.product_slug, qty: item.quantity})),
     name: row.customer_name,
     email: row.customer_email,
@@ -88,6 +88,8 @@ export function StoreProvider({children}: {children: React.ReactNode}) {
   const [ready, setReady] = useState(false);
   const [accountReady, setAccountReady] = useState(false);
   const productIds = useRef(new Map<string, string>());
+  const cartSyncRevision = useRef(0);
+  const cartSyncQueue = useRef<Promise<void>>(Promise.resolve());
 
   const loadAccount = useCallback(async (userId: string, email: string) => {
     const supabase = getSupabaseBrowserClient();
@@ -181,14 +183,22 @@ export function StoreProvider({children}: {children: React.ReactNode}) {
 
   useEffect(() => {
     if (!ready || !accountReady || !customer?.id || !hasSupabaseConfig()) return;
-    const timer = window.setTimeout(async () => {
-      const supabase = getSupabaseBrowserClient();
-      const rows = cart.flatMap(item => {
-        const productId = productIds.current.get(item.slug);
-        return productId ? [{user_id: customer.id!, product_id: productId, quantity: item.qty}] : [];
-      });
-      const {error: deleteError} = await supabase.from('akl_cart_items').delete().eq('user_id', customer.id!);
-      if (!deleteError && rows.length) await supabase.from('akl_cart_items').insert(rows);
+    const revision = ++cartSyncRevision.current;
+    const userId = customer.id;
+    const rows = cart.flatMap(item => {
+      const productId = productIds.current.get(item.slug);
+      return productId ? [{user_id: userId, product_id: productId, quantity: item.qty}] : [];
+    });
+    const timer = window.setTimeout(() => {
+      cartSyncQueue.current = cartSyncQueue.current
+        .catch(() => undefined)
+        .then(async () => {
+          if (revision !== cartSyncRevision.current) return;
+          const supabase = getSupabaseBrowserClient();
+          const {error: deleteError} = await supabase.from('akl_cart_items').delete().eq('user_id', userId);
+          if (deleteError || revision !== cartSyncRevision.current) return;
+          if (rows.length) await supabase.from('akl_cart_items').insert(rows);
+        });
     }, 350);
     return () => window.clearTimeout(timer);
   }, [accountReady, cart, customer?.id, ready]);
@@ -202,17 +212,9 @@ export function StoreProvider({children}: {children: React.ReactNode}) {
     : setCart(current => current.map(item => item.slug === slug ? {...item, qty} : item));
   const clear = () => setCart([]);
 
-  const place = async (input: Omit<Order, 'id' | 'date' | 'status'>) => {
-    const response = await fetch('/api/orders', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(input),
-    });
-    const payload = await response.json() as {order?: Order; error?: string};
-    if (!response.ok || !payload.order) throw new Error(payload.error || 'Unable to place this order.');
-    setOrders(current => [payload.order!, ...current]);
+  const recordOrder = (order: Order) => {
+    setOrders(current => [order, ...current.filter(existing => existing.id !== order.id)]);
     clear();
-    return payload.order;
   };
 
   const signIn = async (email: string, password: string): Promise<AuthResult> => {
@@ -272,7 +274,7 @@ export function StoreProvider({children}: {children: React.ReactNode}) {
   };
 
   return (
-    <StoreContext.Provider value={{ready, cart, products, wishlist, orders, customer, add, remove, setQty, clear, place, signIn, register, signOut, updateCustomer, toggleWishlist}}>
+    <StoreContext.Provider value={{ready, cart, products, wishlist, orders, customer, add, remove, setQty, clear, recordOrder, signIn, register, signOut, updateCustomer, toggleWishlist}}>
       {children}
     </StoreContext.Provider>
   );

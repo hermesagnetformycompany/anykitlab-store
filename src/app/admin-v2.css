@@ -83,6 +83,11 @@
 .admin-v3-top-actions button svg,
 .admin-panel > header > button svg { width: 17px; height: 17px; }
 .admin-v3-top-actions > span { width: 43px; height: 43px; border-radius: 50%; color: #fff; background: var(--admin-orange); display: grid; place-items: center; font-size: 12px; font-weight: 850; }
+.admin-save-state { min-width: 92px; color: #456f55; font-size: 11px; font-weight: 800; text-align: right; }
+.admin-save-state.error { color: #a83232; }
+.admin-persistence-error { margin-bottom: 18px; padding: 14px 16px; border: 1px solid #e4bcbc; border-radius: 7px; color: #7f2222; background: #fff3f3; display: flex; align-items: flex-start; gap: 10px; font-size: 12px; line-height: 1.5; }
+.admin-persistence-error svg { flex: 0 0 auto; width: 19px; height: 19px; margin-top: 1px; }
+.admin-persistence-error span { display: grid; gap: 2px; }
 
 .admin-v3-content { width: min(100%, 1680px); margin: 0 auto; padding: 34px clamp(28px, 4vw, 64px) 72px; }
 .admin-metric-grid { margin-bottom: 24px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
@@ -141,6 +146,9 @@
 .admin-link-button { padding: 0; border: 0; color: #174b8c; background: transparent; font-size: 12px; font-weight: 850; }
 .asset-count { display: flex; align-items: center; gap: 6px; font-size: 11px; }
 .asset-count svg { width: 16px; height: 16px; color: var(--admin-orange); }
+.admin-catalog-thumb { width: 58px; height: 44px; border: 1px solid var(--admin-line); border-radius: 6px; object-fit: cover; display: block; }
+.admin-asset-empty { color: var(--admin-muted); display: inline-flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 750; }
+.admin-asset-empty svg { width: 16px; height: 16px; color: var(--admin-orange); }
 
 .admin-status { display: inline-flex; min-height: 25px; padding: 5px 9px; border-radius: 999px; color: #41443f; background: #e9ebe7; align-items: center; font-size: 9px; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
 .admin-status.published,
@@ -235,6 +243,10 @@
 .admin-drawer > header > button svg { width: 19px; height: 19px; }
 .template-editor-form { padding: 26px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .template-editor-form .wide { grid-column: 1 / -1; }
+.template-editor-form label > small { color: var(--admin-muted); font-size: 9px; font-weight: 500; line-height: 1.5; letter-spacing: 0; text-transform: none; }
+.admin-multi-select { min-height: 150px !important; padding: 6px !important; }
+.admin-multi-select option { padding: 8px 9px; border-radius: 4px; }
+.admin-editor-preview { width: 100%; max-height: 150px; margin-top: 8px; border: 1px solid var(--admin-line); border-radius: 6px; object-fit: cover; display: block; }
 .file-field { min-height: 110px; padding: 15px; border: 1px dashed #bdc1b9; border-radius: 7px; display: grid !important; grid-template-columns: 30px 1fr; align-items: center; gap: 10px !important; }
 .file-field > svg { width: 25px; height: 25px; color: var(--admin-orange); }
 .file-field span { display: grid; gap: 4px; }

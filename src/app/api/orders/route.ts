@@ -1,122 +1,165 @@
 import {NextResponse, type NextRequest} from 'next/server';
+import QRCode from 'qrcode';
+import {buildUpiPaymentUri, CheckoutInputError, isValidUpiId} from '@/lib/checkout-core';
+import {CheckoutAvailabilityError, createCheckoutQuote} from '@/lib/checkout-server';
 import {getSupabaseAdminClient} from '@/lib/supabase/admin';
 import {getSupabaseServerClient} from '@/lib/supabase/server';
 
-type CheckoutItem = {slug: string; qty: number};
+type IntentItem = {product_slug: string; product_title: string; unit_price: number; quantity: number};
+type IntentOrder = {
+  id: string;
+  order_number: string;
+  total: number;
+  status: string;
+  created_at: string;
+  akl_order_items?: IntentItem[];
+};
 
-type RateEntry = {count: number; resetAt: number};
-const rateLimit = new Map<string, RateEntry>();
-const RATE_WINDOW_MS = 10 * 60 * 1000;
-const RATE_MAX = 5;
+async function intentResponse(order: IntentOrder, items: IntentItem[], upiId: string, payeeName: string, status: 200 | 201) {
+  const uri = buildUpiPaymentUri({
+    upiId,
+    payeeName,
+    amount: order.total,
+    transactionReference: order.order_number,
+    note: `${payeeName} order ${order.order_number}`,
+  });
+  const qrDataUrl = await QRCode.toDataURL(uri, {
+    errorCorrectionLevel: 'M',
+    margin: 2,
+    width: 360,
+    color: {dark: '#171714', light: '#ffffff'},
+  });
 
-function clientKey(request: NextRequest, userId: string) {
-  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return `${userId}:${forwarded || 'unknown'}`;
+  return NextResponse.json({
+    paymentIntent: {
+      id: order.id,
+      orderNumber: order.order_number,
+      total: order.total,
+      status: order.status,
+      upiId,
+      payeeName,
+      reference: order.order_number,
+      uri,
+      qrDataUrl,
+      createdAt: order.created_at,
+      items: items.map(item => ({
+        slug: item.product_slug,
+        title: item.product_title,
+        qty: item.quantity,
+        unitPrice: item.unit_price,
+        lineTotal: item.unit_price * item.quantity,
+      })),
+    },
+  }, {status, headers: {'Cache-Control': 'no-store'}});
 }
 
-function isRateLimited(key: string) {
-  const now = Date.now();
-  const current = rateLimit.get(key);
-  if (!current || current.resetAt <= now) {
-    rateLimit.set(key, {count: 1, resetAt: now + RATE_WINDOW_MS});
-    return false;
-  }
-  current.count += 1;
-  rateLimit.set(key, current);
-  return current.count > RATE_MAX;
+function closedIntentResponse() {
+  return NextResponse.json({
+    error: 'This payment request is no longer payable. Start a new checkout.',
+    code: 'CHECKOUT_KEY_CLOSED',
+  }, {status: 409, headers: {'Cache-Control': 'no-store'}});
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const serverClient = await getSupabaseServerClient();
-    const {data: {user}, error: userError} = await serverClient.auth.getUser();
-    if (userError || !user?.id || !user.email) {
-      return NextResponse.json({error: 'Sign in to submit an order and receive account access.'}, {status: 401});
-    }
-    if (isRateLimited(clientKey(request, user.id))) {
-      return NextResponse.json({error: 'Too many order attempts. Please wait before trying again.'}, {status: 429, headers: {'Retry-After': '600'}});
+    const supabase = await getSupabaseServerClient();
+    const {data: {user}, error: authError} = await supabase.auth.getUser();
+    if (authError || !user?.email) {
+      return NextResponse.json({error: 'Sign in before creating a payment request.'}, {status: 401});
     }
 
     const body = await request.json() as {
       name?: string;
       email?: string;
       phone?: string;
-      reference?: string;
-      items?: CheckoutItem[];
+      items?: unknown;
+      checkoutKey?: string;
     };
     const name = body.name?.trim() || '';
     const email = body.email?.trim().toLowerCase() || '';
     const phone = body.phone?.trim() || '';
-    const reference = body.reference?.trim().toUpperCase() || '';
-    const items = Array.isArray(body.items) ? body.items : [];
-
-    if (name.length < 2 || !/^\S+@\S+\.\S+$/.test(email) || phone.length < 7) {
-      return NextResponse.json({error: 'Enter a valid name, email address, and phone number.'}, {status: 400});
+    if (!name || !email || !phone) {
+      return NextResponse.json({error: 'Complete your name, email, and phone number.'}, {status: 400});
     }
     if (email !== user.email.toLowerCase()) {
-      return NextResponse.json({error: 'Use the email address connected to your signed-in account.'}, {status: 400});
+      return NextResponse.json({error: 'Use the email address attached to your signed-in account.'}, {status: 403});
     }
-    if (!/^[A-Z0-9-]{6,40}$/.test(reference)) {
-      return NextResponse.json({error: 'Enter a valid payment transaction reference.'}, {status: 400});
-    }
-    if (!items.length || items.length > 20 || items.some(item => !item.slug || !Number.isInteger(item.qty) || item.qty < 1 || item.qty > 99)) {
-      return NextResponse.json({error: 'The cart contains invalid items.'}, {status: 400});
+    const checkoutKey = body.checkoutKey?.trim() || '';
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkoutKey)) {
+      return NextResponse.json({error: 'Invalid checkout request. Refresh and try again.'}, {status: 400});
     }
 
     const admin = getSupabaseAdminClient();
-    const slugs = [...new Set(items.map(item => item.slug))];
-    const {data: products, error: productError} = await admin
-      .from('akl_products')
-      .select('id,slug,title,price,status')
-      .in('slug', slugs)
-      .eq('status', 'Published');
-    if (productError) throw productError;
-    if (!products || products.length !== slugs.length) {
-      return NextResponse.json({error: 'One or more products are no longer available.'}, {status: 409});
+    const {data: settings, error: settingsError} = await admin
+      .from('akl_site_settings')
+      .select('store_name,upi_id')
+      .eq('id', 'storefront')
+      .maybeSingle();
+    if (settingsError || !settings) throw settingsError || new Error('Store payment settings are unavailable.');
+
+    const upiId = String(settings.upi_id || '').trim();
+    const payeeName = String(settings.store_name || 'AnyKit Lab').trim();
+    if (!isValidUpiId(upiId)) {
+      return NextResponse.json({error: 'UPI checkout is temporarily unavailable. Contact support if this continues.'}, {status: 503});
     }
 
-    const productsBySlug = new Map(products.map(product => [product.slug, product]));
-    const total = items.reduce((sum, item) => sum + productsBySlug.get(item.slug)!.price * item.qty, 0);
-    const {data: order, error: orderError} = await admin.from('akl_orders').insert({
-      user_id: user.id,
-      customer_name: name,
-      customer_email: user.email.toLowerCase(),
-      customer_phone: phone,
-      total,
-      payment_reference: reference,
-      payment_method: 'UPI',
-    }).select('id,order_number,created_at,status').single();
-
-    if (orderError) {
-      if (orderError.code === '23505') return NextResponse.json({error: 'That payment reference has already been submitted.'}, {status: 409});
-      throw orderError;
+    const existingColumns = 'id,order_number,total,status,created_at,akl_order_items(product_slug,product_title,unit_price,quantity)';
+    const {data: existing, error: existingError} = await admin
+      .from('akl_orders')
+      .select(existingColumns)
+      .eq('user_id', user.id)
+      .eq('checkout_key', checkoutKey)
+      .maybeSingle();
+    if (existingError) throw existingError;
+    if (existing) {
+      const order = existing as unknown as IntentOrder;
+      if (order.status !== 'Awaiting payment') return closedIntentResponse();
+      return intentResponse(order, order.akl_order_items || [], upiId, payeeName, 200);
     }
 
-    const orderItems = items.map(item => {
-      const product = productsBySlug.get(item.slug)!;
-      return {order_id: order.id, product_id: product.id, product_slug: product.slug, product_title: product.title, unit_price: product.price, quantity: item.qty};
+    const quote = await createCheckoutQuote(body.items);
+
+    const intentItems = quote.items.map(item => ({
+      product_id: item.id,
+      product_slug: item.slug,
+      product_title: item.title,
+      unit_price: item.price,
+      quantity: item.qty,
+    }));
+    const {data: intentRows, error: intentError} = await admin.rpc('akl_create_payment_intent', {
+      p_user_id: user.id,
+      p_customer_name: name,
+      p_customer_email: email,
+      p_customer_phone: phone,
+      p_total: quote.total,
+      p_checkout_key: checkoutKey,
+      p_items: intentItems,
     });
-    const {error: itemError} = await admin.from('akl_order_items').insert(orderItems);
-    if (itemError) {
-      await admin.from('akl_orders').delete().eq('id', order.id);
-      throw itemError;
+    const intentRow = (Array.isArray(intentRows) ? intentRows[0] : intentRows) as (IntentOrder & {created?: boolean}) | null;
+    if (intentError || !intentRow) throw intentError || new Error('Unable to create the order payment request.');
+
+    if (!intentRow.created) {
+      const {data: concurrent, error: concurrentError} = await admin
+        .from('akl_orders')
+        .select(existingColumns)
+        .eq('user_id', user.id)
+        .eq('checkout_key', checkoutKey)
+        .maybeSingle();
+      if (concurrentError || !concurrent) throw concurrentError || new Error('Unable to recover the existing payment request.');
+      const concurrentOrder = concurrent as unknown as IntentOrder;
+      if (concurrentOrder.status !== 'Awaiting payment') return closedIntentResponse();
+      return intentResponse(concurrentOrder, concurrentOrder.akl_order_items || [], upiId, payeeName, 200);
     }
 
-    return NextResponse.json({
-      order: {
-        id: order.order_number,
-        date: new Date(order.created_at).toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'}),
-        total,
-        status: order.status,
-        reference,
-        items,
-        name,
-        email: user.email.toLowerCase(),
-        phone,
-      },
-    }, {status: 201});
+    return intentResponse(intentRow, intentItems, upiId, payeeName, 201);
   } catch (error) {
-    console.error('Order creation failed:', error instanceof Error ? error.message : error);
-    return NextResponse.json({error: 'We could not submit the order. Please try again.'}, {status: 500});
+    if (error instanceof CheckoutInputError) {
+      return NextResponse.json({error: error.message}, {status: 400});
+    }
+    if (error instanceof CheckoutAvailabilityError) {
+      return NextResponse.json({error: error.message}, {status: 409});
+    }
+    console.error('Payment intent creation failed:', error instanceof Error ? error.message : error);
+    return NextResponse.json({error: 'We could not create the secure payment request. Please try again.'}, {status: 500});
   }
 }

@@ -183,7 +183,104 @@
 .catalog-media-grid small { color: var(--muted); }
 .catalog-media-grid .danger { width: 36px; height: 36px; border: 1px solid var(--line); background: white; }
 
+/* Legibility and touch-target repairs for customer-facing commerce flows. */
+.catalog-intro p,
+.category-hero-copy p,
+.collection-hero p,
+.product-summary > p,
+.simple-page-title p,
+.checkout-title p,
+.empty-cart p,
+.faq details p,
+.help-sections p,
+.account-empty-state p,
+.account-footnote,
+.access-list p,
+.profile-avatar small,
+.account-help-link small,
+.account-next-steps > div > a small,
+.account-content .kit-library-main p,
+.customer-auth .auth-side > div:last-child small,
+.footer-brand p,
+.footer-group a,
+.delivery-note,
+.social-proof .faq > a {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.product-actions .kit-btn,
+.product-actions > a,
+.product-details-tabs > nav button {
+  min-height: 44px;
+  font-size: 13px;
+}
+
+.cart-line { grid-template-columns: 112px minmax(0, 1fr) 132px; }
+.cart-line-copy button {
+  min-height: 44px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+}
+.cart-line-price > div { grid-template-columns: repeat(3, 44px); }
+.cart-line-price button { min-width: 44px; min-height: 44px; cursor: pointer; }
+.cart-line-price > div b { min-width: 44px; min-height: 44px; }
+.checkout-button,
+.continue-shopping { min-height: 44px; }
+
+.mobile-account-link { display: none !important; }
+.checkout-card h2 { font-size: 16px; }
+.checkout-fields input,
+.reference-field input { min-height: 44px; }
+.checkout-fields label > small,
+.upi-qr-panel > small,
+.upi-quote-reference,
+.checkout-secure,
+.checkout-summary-item small,
+.checkout-totals > small,
+.checkout-summary > section > span > small,
+.checkout-summary > section p,
+.checkout-summary > section a { font-size: 12px; line-height: 1.5; }
+.checkout-summary-title h2 { font-size: 16px; }
+.checkout-summary > section h3 { font-size: 14px; }
+.confirmation-columns h2 { font-size: 16px; }
+.confirmation-order > span strong { font-size: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto !important; }
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
 @media (max-width: 760px) {
+  body,
+  main { overflow-x: clip; }
+  .home-hero,
+  .hero-copy { min-width: 0; }
+  .hero-copy h1 {
+    max-width: 100%;
+    font-size: clamp(38px, 11vw, 46px);
+    line-height: 1;
+  }
+  .hero-copy > p { max-width: 100%; font-size: 14px; line-height: 1.55; }
+  .hero-stamp { font-size: 10px; line-height: 1.25; }
+  .hero-actions { width: 100%; display: grid; grid-template-columns: 1fr; }
+  .primary-action,
+  .secondary-action { width: 100%; min-height: 44px; }
+  .store-header nav > a,
+  .store-nav-item > button,
+  .store-dropdown a { min-height: 44px; }
+  .store-header nav > a,
+  .store-nav-item > button { font-size: 13px; }
+  .store-header nav > .mobile-account-link { display: flex !important; }
+  .store-dropdown a small { font-size: 11px; line-height: 1.4; }
   .product-gallery-thumbnails { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .product-description { grid-template-columns: 1fr; }
   .product-description aside { border-left: 0; border-top: 1px solid var(--line); }
@@ -192,4 +289,12 @@
   .catalog-tools-list article { grid-template-columns: 1fr; }
   .catalog-tools-edit { grid-template-columns: 1fr; }
   .catalog-media-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cart-line { grid-template-columns: 86px minmax(0, 1fr); }
+  .cart-line-price {
+    grid-column: 2;
+    width: 100%;
+    height: auto;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
 }
