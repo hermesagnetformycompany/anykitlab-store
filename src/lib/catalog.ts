@@ -72,9 +72,9 @@ const defaultSettings: StoreSettings = {
   upiId: '',
   verificationSla: '12–24 hours',
   senderName: 'AnyKit Lab Delivery',
-  heroImage1: '/reference/gym-kit.png',
-  heroImage2: '/reference/lash-kit.png',
-  heroImage3: '/reference/detail-kit.png',
+  heroImage1: '',
+  heroImage2: '',
+  heroImage3: '',
 };
 
 function formatDate(value: string) {
