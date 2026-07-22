@@ -38,6 +38,7 @@ const databaseRoles: Record<AdminRole, DatabaseRole> = {
 };
 
 export const canAccessAdminTab = (role: AdminRole, tab: string) => roleAccess[role].includes(tab);
+export const canManageOrderStatus = (role: AdminRole) => role === 'Owner' || role === 'Payment reviewer';
 export const toAdminRole = (role: string): AdminRole | null => role in roleLabels ? roleLabels[role as DatabaseRole] : null;
 export const toDatabaseRole = (role: AdminRole): DatabaseRole => databaseRoles[role];
 

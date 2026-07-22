@@ -33,7 +33,7 @@ type ProductRow = {
   id: string;
   slug: string;
   title: string;
-  category_id: string;
+  category_id: string | null;
   collection_id: string | null;
   price: number;
   mrp: number;
@@ -124,7 +124,6 @@ export async function getCatalogData(): Promise<CatalogData> {
       imageUrl: row.image_url || undefined,
     }));
     const categoryNames = new Map(categories.map(category => [category.id, category.name]));
-    const categoryIds = new Set(categoryNames.keys());
     const collections = ((collectionResult.data || []) as CollectionRow[]).map(row => ({
       id: row.id,
       name: row.name,
@@ -158,7 +157,6 @@ export async function getCatalogData(): Promise<CatalogData> {
     }
 
     const products = ((productResult.data || []) as ProductRow[])
-      .filter(row => categoryIds.has(row.category_id))
       .map(row => {
         const media = mediaByProduct.get(row.slug) || [];
         const mediaCover = media.find(item => item.type === 'Cover')?.url;
@@ -168,8 +166,8 @@ export async function getCatalogData(): Promise<CatalogData> {
           id: row.id,
           slug: row.slug,
           title: row.title,
-          categoryId: row.category_id,
-          category: categoryNames.get(row.category_id) || 'Uncategorised',
+          categoryId: row.category_id || '',
+          category: row.category_id ? categoryNames.get(row.category_id) || 'Uncategorised' : 'Uncategorised',
           collectionId: row.collection_id || '',
           price: row.price,
           mrp: row.mrp,

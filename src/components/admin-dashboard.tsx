@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 import {FormEvent, useEffect, useRef, useState} from 'react';
 import {BrandLockup} from '@/components/site';
-import {canAccessAdminTab, defaultAdminTeam, readAdminSession, type AdminRole, type AdminTeamMember} from '@/lib/admin-auth';
+import {canAccessAdminTab, canManageOrderStatus, defaultAdminTeam, readAdminSession, type AdminRole, type AdminTeamMember} from '@/lib/admin-auth';
 import {
   money,
   type Category,
@@ -47,7 +47,7 @@ import {getSupabaseBrowserClient} from '@/lib/supabase/client';
 type AdminTab = 'Overview' | 'Orders' | 'Templates' | 'Categories' | 'Collections' | 'Media' | 'Customers' | 'Team' | 'Reports' | 'Settings';
 type AdminTemplate = Product & {coverName: string; deliveryName: string; coverUrl?: string};
 type AdminMedia = {id: string; name: string; type: 'Cover' | 'Preview' | 'Video' | 'Delivery'; linkedTo: string; status: 'Ready' | 'Processing'; storagePath?: string; publicUrl?: string};
-type AdminOrderStatus = 'Pending verification' | 'Verified' | 'Access sent' | 'Rejected';
+type AdminOrderStatus = 'Awaiting payment' | 'Pending verification' | 'Verified' | 'Access sent' | 'Rejected';
 type AdminOrder = {id: string; date: string; name: string; email: string; total: number; reference: string; items: number; status: AdminOrderStatus};
 type StoreSettings = {storeName: string; supportEmail: string; upiId: string; verificationSla: string; senderName: string; heroImage1?: string; heroImage2?: string; heroImage3?: string};
 
@@ -91,14 +91,17 @@ async function uploadAdminAsset(file: File, type: AdminMedia['type']) {
   return {storagePath, publicUrl: publicUrlData.publicUrl};
 }
 
-function useAdminState<T>(key: string, initialValue: T) {
+function useAdminState<T>(key: string, initialValue: T, {autosave = true, enabled = true}: {autosave?: boolean; enabled?: boolean} = {}) {
   const [value, setValue] = useState(initialValue);
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(!enabled);
+  const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const requestId = useRef(0);
   const skipNextSave = useRef(false);
   const safeToSave = useRef(false);
 
   useEffect(() => {
+    if (!enabled) return;
     let active = true;
     void fetch(`/api/admin/state/${key}`, {credentials: 'same-origin'})
       .then(async response => {
@@ -110,19 +113,24 @@ function useAdminState<T>(key: string, initialValue: T) {
           setValue(payload.value);
         }
       })
-      .catch(error => console.error(error))
+      .catch(error => {
+        console.error(error);
+        if (active) setErrorMessage(error instanceof Error ? error.message : `Unable to load ${key}.`);
+      })
       .finally(() => { if (active) setLoaded(true); });
     return () => { active = false; };
-  }, [key]);
+  }, [enabled, key]);
 
   useEffect(() => {
-    if (!loaded || !safeToSave.current) return;
+    if (!enabled || !autosave || !loaded || !safeToSave.current) return;
     if (skipNextSave.current) {
       skipNextSave.current = false;
       return;
     }
     const currentRequest = ++requestId.current;
     const timer = window.setTimeout(() => {
+      setSaving(true);
+      setErrorMessage('');
       void fetch(`/api/admin/state/${key}`, {
         method: 'PUT',
         credentials: 'same-origin',
@@ -142,30 +150,45 @@ function useAdminState<T>(key: string, initialValue: T) {
             setValue(payload.value);
           }
         }
-      }).catch(error => console.error(error));
+      }).catch(error => {
+        console.error(error);
+        if (requestId.current === currentRequest) {
+          setErrorMessage(error instanceof Error ? error.message : `Unable to save ${key}.`);
+        }
+      }).finally(() => {
+        if (requestId.current === currentRequest) setSaving(false);
+      });
     }, 450);
     return () => window.clearTimeout(timer);
-  }, [key, loaded, value]);
+  }, [autosave, enabled, key, loaded, value]);
 
-  return [value, setValue] as const;
+  return [value, setValue, {loaded, saving, errorMessage}] as const;
 }
 
 export function AdminDashboard() {
   const [adminSession] = useState(readAdminSession);
   const [tab, setTab] = useState<AdminTab>('Overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [templates, setTemplates] = useAdminState<AdminTemplate[]>('templates', initialTemplates);
-  const [categories, setCategories] = useAdminState<Category[]>('categories', []);
-  const [collections, setCollections] = useAdminState<Collection[]>('collections', []);
-  const [media, setMedia] = useAdminState<AdminMedia[]>('media', initialMedia);
-  const [orders, setOrders] = useAdminState<AdminOrder[]>('orders', []);
-  const [team, setTeam] = useAdminState<AdminTeamMember[]>('team', defaultAdminTeam);
-  const [settings, setSettings] = useAdminState<StoreSettings>('settings', initialSettings);
+  const catalogEnabled = canAccessAdminTab(adminSession.role, 'Templates');
+  const ordersEnabled = canAccessAdminTab(adminSession.role, 'Orders');
+  const teamEnabled = canAccessAdminTab(adminSession.role, 'Team');
+  const settingsEnabled = canAccessAdminTab(adminSession.role, 'Settings');
+  const [templates, setTemplates, templatesState] = useAdminState<AdminTemplate[]>('templates', initialTemplates, {autosave: false, enabled: catalogEnabled});
+  const [categories, setCategories, categoriesState] = useAdminState<Category[]>('categories', [], {autosave: false, enabled: catalogEnabled});
+  const [collections, setCollections, collectionsState] = useAdminState<Collection[]>('collections', [], {autosave: false, enabled: catalogEnabled});
+  const [media, setMedia, mediaState] = useAdminState<AdminMedia[]>('media', initialMedia, {enabled: catalogEnabled});
+  const [orders, setOrders, ordersState] = useAdminState<AdminOrder[]>('orders', [], {autosave: false, enabled: ordersEnabled});
+  const [team, setTeam, teamState] = useAdminState<AdminTeamMember[]>('team', defaultAdminTeam, {enabled: teamEnabled});
+  const [settings, setSettings, settingsState] = useAdminState<StoreSettings>('settings', initialSettings, {enabled: settingsEnabled});
   const [editingTemplate, setEditingTemplate] = useState<AdminTemplate | null | 'new'>(null);
+  const [editingCategory, setEditingCategory] = useState<Category | null | 'new'>(null);
+  const [editingCollection, setEditingCollection] = useState<Collection | null | 'new'>(null);
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All statuses');
   const [toast, setToast] = useState('');
+  const [mutationError, setMutationError] = useState('');
+  const [mutationSaving, setMutationSaving] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -177,11 +200,23 @@ export function AdminDashboard() {
     const matchesQuery = `${template.title} ${template.category} ${template.id}`.toLowerCase().includes(query.toLowerCase());
     return matchesQuery && (statusFilter === 'All statuses' || template.status === statusFilter);
   });
+  const filteredCategories = categories.filter(category => {
+    const matchesQuery = `${category.name} ${category.slug} ${category.description}`.toLowerCase().includes(query.toLowerCase());
+    return matchesQuery && (statusFilter === 'All statuses' || category.status === statusFilter);
+  });
+  const filteredCollections = collections.filter(collection => {
+    const matchesQuery = `${collection.name} ${collection.description}`.toLowerCase().includes(query.toLowerCase());
+    return matchesQuery && (statusFilter === 'All statuses' || collection.status === statusFilter);
+  });
   const pendingOrders = orders.filter(order => order.status === 'Pending verification').length;
   const paidRevenue = orders.filter(order => order.status === 'Verified' || order.status === 'Access sent').reduce((sum, order) => sum + order.total, 0);
   const customerCount = new Set(orders.map(order => order.email)).size;
   const visibleTabs = adminTabs.filter(item => canAccessAdminTab(adminSession.role, item.label));
   const adminInitials = adminSession.name.split(' ').map(part => part[0]).slice(0, 2).join('').toUpperCase();
+  const stateEntries = [templatesState, categoriesState, collectionsState, mediaState, ordersState, teamState, settingsState];
+  const persistenceError = mutationError || stateEntries.find(state => state.errorMessage)?.errorMessage || '';
+  const isSaving = mutationSaving || stateEntries.some(state => state.saving);
+  const allLoaded = stateEntries.every(state => state.loaded);
 
   const openTab = (nextTab: AdminTab) => {
     if (!canAccessAdminTab(adminSession.role, nextTab)) return;
@@ -189,6 +224,46 @@ export function AdminDashboard() {
     setSidebarOpen(false);
     setQuery('');
     setStatusFilter('All statuses');
+  };
+
+  const persistCatalogItem = async (resource: 'products' | 'categories' | 'collections', item: {id: string}) => {
+    setMutationSaving(true);
+    setMutationError('');
+    try {
+      const response = await fetch(`/api/admin/catalog/${resource}/${encodeURIComponent(item.id)}`, {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({item}),
+      });
+      const payload = await response.json() as {error?: string};
+      if (!response.ok) throw new Error(payload.error || 'Unable to save the catalog item.');
+      return true;
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : 'Unable to save the catalog item.');
+      return false;
+    } finally {
+      setMutationSaving(false);
+    }
+  };
+
+  const removeCatalogItem = async (resource: 'products' | 'categories' | 'collections', id: string) => {
+    setMutationSaving(true);
+    setMutationError('');
+    try {
+      const response = await fetch(`/api/admin/catalog/${resource}/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      });
+      const payload = await response.json() as {error?: string};
+      if (!response.ok) throw new Error(payload.error || 'Unable to delete the catalog item.');
+      return true;
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : 'Unable to delete the catalog item.');
+      return false;
+    } finally {
+      setMutationSaving(false);
+    }
   };
 
   const saveTemplate = async (event: FormEvent<HTMLFormElement>) => {
@@ -240,49 +315,141 @@ export function AdminDashboard() {
       coverUrl,
       updatedAt: new Date().toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'}),
     };
+    if (!await persistCatalogItem('products', nextTemplate)) return;
     setTemplates(currentTemplates => current ? currentTemplates.map(template => template.id === current.id ? nextTemplate : template) : [nextTemplate, ...currentTemplates]);
     setEditingTemplate(null);
     setToast(current ? 'Template changes saved.' : 'Template created as requested.');
   };
 
-  const duplicateTemplate = (template: AdminTemplate) => {
-    setTemplates(current => [{...template, id: `tpl-${Date.now()}`, slug: `${template.slug}-copy`, title: `${template.title} Copy`, status: 'Draft'}, ...current]);
+  const duplicateTemplate = async (template: AdminTemplate) => {
+    const copy = {...template, id: `tpl-${Date.now()}`, slug: `${template.slug}-copy`, title: `${template.title} Copy`, status: 'Draft' as const};
+    if (!await persistCatalogItem('products', copy)) return;
+    setTemplates(current => [copy, ...current]);
     setToast('Template duplicated as a draft.');
   };
 
-  const toggleTemplateArchive = (template: AdminTemplate) => {
+  const toggleTemplateArchive = async (template: AdminTemplate) => {
     const nextStatus: AdminTemplate['status'] = template.status === 'Archived' ? 'Draft' : 'Archived';
-    setTemplates(current => current.map(item => item.id === template.id ? {...item, status: nextStatus} : item));
+    const nextTemplate = {...template, status: nextStatus};
+    if (!await persistCatalogItem('products', nextTemplate)) return;
+    setTemplates(current => current.map(item => item.id === template.id ? nextTemplate : item));
     setToast(nextStatus === 'Archived' ? 'Template archived.' : 'Template restored as a draft.');
   };
 
-  const deleteTemplate = (template: AdminTemplate) => {
+  const deleteTemplate = async (template: AdminTemplate) => {
     if (!window.confirm(`Delete “${template.title}”? This cannot be undone.`)) return;
+    if (!await removeCatalogItem('products', template.id)) return;
     setTemplates(current => current.filter(item => item.id !== template.id));
     setToast('Template deleted.');
   };
 
-  const updateOrder = (id: string, status: AdminOrderStatus) => {
-    setOrders(current => current.map(order => order.id === id ? {...order, status} : order));
-    setSelectedOrder(current => current?.id === id ? {...current, status} : current);
-    setToast(status === 'Access sent' ? 'Customer access marked as sent.' : `Order marked ${status.toLowerCase()}.`);
+  const updateOrder = async (id: string, status: AdminOrderStatus) => {
+    setMutationSaving(true);
+    setMutationError('');
+    try {
+      const response = await fetch(`/api/admin/orders/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status}),
+      });
+      const payload = await response.json() as {error?: string};
+      if (!response.ok) throw new Error(payload.error || 'Unable to update the order.');
+      setOrders(current => current.map(order => order.id === id ? {...order, status} : order));
+      setSelectedOrder(current => current?.id === id ? {...current, status} : current);
+      setToast(status === 'Access sent' ? 'Customer access marked as sent.' : `Order marked ${status.toLowerCase()}.`);
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : 'Unable to update the order.');
+    } finally {
+      setMutationSaving(false);
+    }
   };
 
-  const addCategory = (event: FormEvent<HTMLFormElement>) => {
+  const saveCategory = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const name = String(form.get('name')).trim();
-    setCategories(current => [...current, {id: `cat-${Date.now()}`, slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name, description: String(form.get('description')).trim(), status: 'Active', productCount: 0, imageUrl: ''}]);
-    event.currentTarget.reset();
-    setToast('Category added.');
+    const current = editingCategory === 'new' || !editingCategory ? null : editingCategory;
+    const slug = String(form.get('slug')).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    if (categories.some(category => category.id !== current?.id && category.slug === slug)) {
+      setToast('Another category already uses that slug.');
+      return;
+    }
+    let imageUrl = current?.imageUrl || '';
+    const image = form.get('image') as File | null;
+    try {
+      if (image?.size) imageUrl = (await uploadAdminAsset(image, 'Cover')).publicUrl;
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : 'Category image upload failed.');
+      return;
+    }
+    const nextCategory: Category = {
+      id: current?.id || `cat-${Date.now()}`,
+      slug,
+      name,
+      description: String(form.get('description')).trim(),
+      status: String(form.get('status')) as Category['status'],
+      productCount: current?.productCount || 0,
+      imageUrl,
+    };
+    if (!await persistCatalogItem('categories', nextCategory)) return;
+    setCategories(all => current ? all.map(category => category.id === current.id ? nextCategory : category) : [nextCategory, ...all]);
+    setEditingCategory(null);
+    setToast(current ? 'Category changes saved.' : 'Category created.');
   };
 
-  const addCollection = (event: FormEvent<HTMLFormElement>) => {
+  const saveCollection = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    setCollections(current => [...current, {id: `col-${Date.now()}`, name: String(form.get('name')).trim(), description: String(form.get('description')).trim(), status: String(form.get('status')) as Collection['status'], categoryIds: [], imageUrl: ''}]);
-    event.currentTarget.reset();
-    setToast('Collection created.');
+    const current = editingCollection === 'new' || !editingCollection ? null : editingCollection;
+    let imageUrl = current?.imageUrl || '';
+    const image = form.get('image') as File | null;
+    try {
+      if (image?.size) imageUrl = (await uploadAdminAsset(image, 'Cover')).publicUrl;
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : 'Collection image upload failed.');
+      return;
+    }
+    const nextCollection: Collection = {
+      id: current?.id || `col-${Date.now()}`,
+      name: String(form.get('name')).trim(),
+      description: String(form.get('description')).trim(),
+      status: String(form.get('status')) as Collection['status'],
+      categoryIds: form.getAll('categoryIds').map(String),
+      imageUrl,
+    };
+    if (!await persistCatalogItem('collections', nextCollection)) return;
+    setCollections(all => current ? all.map(collection => collection.id === current.id ? nextCollection : collection) : [nextCollection, ...all]);
+    setEditingCollection(null);
+    setToast(current ? 'Collection changes saved.' : 'Collection created.');
+  };
+
+  const toggleCategoryStatus = async (category: Category) => {
+    const nextCategory = {...category, status: category.status === 'Active' ? 'Hidden' as const : 'Active' as const};
+    if (!await persistCatalogItem('categories', nextCategory)) return;
+    setCategories(current => current.map(item => item.id === category.id ? nextCategory : item));
+    setToast(nextCategory.status === 'Active' ? 'Category activated.' : 'Category hidden.');
+  };
+
+  const deleteCategory = async (category: Category) => {
+    if (!window.confirm(`Delete ${category.name}? Assigned kits will remain available but become uncategorised until you assign a new category.`)) return;
+    if (!await removeCatalogItem('categories', category.id)) return;
+    setCategories(current => current.filter(item => item.id !== category.id));
+    setToast('Category deleted.');
+  };
+
+  const toggleCollectionStatus = async (collection: Collection) => {
+    const nextCollection = {...collection, status: collection.status === 'Published' ? 'Draft' as const : 'Published' as const};
+    if (!await persistCatalogItem('collections', nextCollection)) return;
+    setCollections(current => current.map(item => item.id === collection.id ? nextCollection : item));
+    setToast(nextCollection.status === 'Published' ? 'Collection published.' : 'Collection moved to draft.');
+  };
+
+  const deleteCollection = async (collection: Collection) => {
+    if (!window.confirm(`Delete ${collection.name}? Templates will remain in the catalog without this collection assignment.`)) return;
+    if (!await removeCatalogItem('collections', collection.id)) return;
+    setCollections(current => current.filter(item => item.id !== collection.id));
+    setToast('Collection deleted.');
   };
 
   const uploadMedia = async (files: FileList | null) => {
@@ -359,13 +526,14 @@ export function AdminDashboard() {
       </aside>
 
       <section className="admin-v3-main" aria-label="Administrator workspace">
-        <header className="admin-v3-topbar"><div><span>ANYKIT LAB / {adminSession.role.toUpperCase()}</span><h1>{tab}</h1></div><div className="admin-v3-top-actions">{canAccessAdminTab(adminSession.role, 'Templates') && <button type="button" onClick={() => {setTab('Templates'); setEditingTemplate('new');}}><Plus aria-hidden="true" />Add template</button>}<span aria-label={`Signed in as ${adminSession.name}`} title={`${adminSession.name} · ${adminSession.role}`}>{adminInitials}</span></div></header>
+        <header className="admin-v3-topbar"><div><span>ANYKIT LAB / {adminSession.role.toUpperCase()}</span><h1>{tab}</h1></div><div className="admin-v3-top-actions">{tab === 'Templates' && <button type="button" onClick={() => setEditingTemplate('new')}><Plus aria-hidden="true" />Add template</button>}{tab === 'Categories' && <button type="button" onClick={() => setEditingCategory('new')}><Plus aria-hidden="true" />Add category</button>}{tab === 'Collections' && <button type="button" onClick={() => setEditingCollection('new')}><Plus aria-hidden="true" />Add collection</button>}<small className={`admin-save-state ${persistenceError ? 'error' : ''}`} aria-live="polite">{persistenceError ? 'Save failed' : !allLoaded ? 'Loading data…' : isSaving ? 'Saving…' : 'Changes saved'}</small><span aria-label={`Signed in as ${adminSession.name}`} title={`${adminSession.name} · ${adminSession.role}`}>{adminInitials}</span></div></header>
         <div className="admin-v3-content">
+          {persistenceError && <div className="admin-persistence-error" role="alert"><XCircle aria-hidden="true" /><span><b>Your latest admin change was not saved.</b>{persistenceError}</span></div>}
           {tab === 'Overview' && <Overview templates={templates} categories={categories} media={media} orders={orders} paidRevenue={paidRevenue} customerCount={customerCount} role={adminSession.role} openTab={openTab} onSelectOrder={setSelectedOrder} />}
-          {tab === 'Orders' && <OrdersView orders={orders} onSelect={setSelectedOrder} onUpdate={updateOrder} onExport={exportOrders} />}
+          {tab === 'Orders' && <OrdersView orders={orders} canManage={canManageOrderStatus(adminSession.role)} onSelect={setSelectedOrder} onUpdate={updateOrder} onExport={exportOrders} />}
           {tab === 'Templates' && <TemplatesView templates={filteredTemplates} query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onEdit={setEditingTemplate} onDuplicate={duplicateTemplate} onArchive={toggleTemplateArchive} onDelete={deleteTemplate} />}
-          {tab === 'Categories' && <CategoriesView categories={categories} setCategories={setCategories} onAdd={addCategory} />}
-          {tab === 'Collections' && <CollectionsView collections={collections} setCollections={setCollections} onAdd={addCollection} />}
+          {tab === 'Categories' && <CategoriesView categories={filteredCategories} query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onAdd={() => setEditingCategory('new')} onEdit={setEditingCategory} onToggle={toggleCategoryStatus} onDelete={deleteCategory} />}
+          {tab === 'Collections' && <CollectionsView collections={filteredCollections} categories={categories} query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onAdd={() => setEditingCollection('new')} onEdit={setEditingCollection} onToggle={toggleCollectionStatus} onDelete={deleteCollection} />}
           {tab === 'Media' && <MediaView media={media} setMedia={setMedia} onUpload={uploadMedia} templates={templates} setTemplates={setTemplates} />}
           {tab === 'Customers' && <CustomersView orders={orders} />}
           {tab === 'Team' && <TeamView team={team} setTeam={setTeam} onAdd={addTeamMember} />}
@@ -375,7 +543,9 @@ export function AdminDashboard() {
       </section>
 
       {editingTemplate && <TemplateEditor template={editingTemplate === 'new' ? null : editingTemplate} categories={categories} collections={collections} onClose={() => setEditingTemplate(null)} onSave={saveTemplate} />}
-      {selectedOrder && <OrderDrawer order={selectedOrder} onClose={() => setSelectedOrder(null)} onUpdate={updateOrder} />}
+      {editingCategory && <CategoryEditor category={editingCategory === 'new' ? null : editingCategory} onClose={() => setEditingCategory(null)} onSave={saveCategory} />}
+      {editingCollection && <CollectionEditor collection={editingCollection === 'new' ? null : editingCollection} categories={categories} onClose={() => setEditingCollection(null)} onSave={saveCollection} />}
+      {selectedOrder && <OrderDrawer order={selectedOrder} canManage={canManageOrderStatus(adminSession.role)} onClose={() => setSelectedOrder(null)} onUpdate={updateOrder} />}
       {toast && <div className="admin-toast" role="status"><Check aria-hidden="true" />{toast}</div>}
       {sidebarOpen && <button className="admin-sidebar-scrim" type="button" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
     </div>
@@ -411,13 +581,13 @@ function Overview({templates, categories, media, orders, paidRevenue, customerCo
   </>;
 }
 
-function OrdersView({orders, onSelect, onUpdate, onExport}: {orders: AdminOrder[]; onSelect: (order: AdminOrder) => void; onUpdate: (id: string, status: AdminOrderStatus) => void; onExport: () => void}) {
+function OrdersView({orders, canManage, onSelect, onUpdate, onExport}: {orders: AdminOrder[]; canManage: boolean; onSelect: (order: AdminOrder) => void; onUpdate: (id: string, status: AdminOrderStatus) => void; onExport: () => void}) {
   const [filter, setFilter] = useState<AdminOrderStatus | 'All'>('All');
   const [search, setSearch] = useState('');
   const visible = orders.filter(order => (filter === 'All' || order.status === filter) && `${order.id} ${order.name} ${order.email} ${order.reference}`.toLowerCase().includes(search.toLowerCase()));
   return <Panel title="Order management" action={<button type="button" onClick={onExport}><Download aria-hidden="true" />Export CSV</button>}>
-    <div className="admin-toolbar"><label><Search aria-hidden="true" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search order, customer or reference" aria-label="Search orders" /></label><select value={filter} onChange={event => setFilter(event.target.value as AdminOrderStatus | 'All')} aria-label="Filter orders by status"><option>All</option><option>Pending verification</option><option>Verified</option><option>Access sent</option><option>Rejected</option></select></div>
-    <TableWrap><table className="admin-table"><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment reference</th><th>Status</th><th>Actions</th></tr></thead><tbody>{visible.map(order => <tr key={order.id}><td><button className="admin-link-button" type="button" onClick={() => onSelect(order)}>{order.id}</button><small>{order.date}</small></td><td><b>{order.name}</b><small>{order.email}</small></td><td>{order.items}</td><td><b>{money(order.total)}</b></td><td><code>{order.reference}</code></td><td><Status value={order.status} /></td><td><div className="row-actions">{order.status === 'Pending verification' && <><button type="button" onClick={() => onUpdate(order.id, 'Verified')} aria-label={`Verify ${order.id}`} title={`Verify payment for ${order.id}`}><CheckCircle2 aria-hidden="true" /></button><button className="danger" type="button" onClick={() => onUpdate(order.id, 'Rejected')} aria-label={`Reject ${order.id}`} title={`Reject payment for ${order.id}`}><XCircle aria-hidden="true" /></button></>} {order.status === 'Verified' && <button type="button" onClick={() => onUpdate(order.id, 'Access sent')}>Send access</button>}<button type="button" onClick={() => onSelect(order)}>Details</button></div></td></tr>)}</tbody></table></TableWrap>
+    <div className="admin-toolbar"><label><Search aria-hidden="true" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search order, customer or reference" aria-label="Search orders" /></label><select value={filter} onChange={event => setFilter(event.target.value as AdminOrderStatus | 'All')} aria-label="Filter orders by status"><option>All</option><option>Awaiting payment</option><option>Pending verification</option><option>Verified</option><option>Access sent</option><option>Rejected</option></select></div>
+    <TableWrap><table className="admin-table"><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment reference</th><th>Status</th><th>Actions</th></tr></thead><tbody>{visible.map(order => <tr key={order.id}><td><button className="admin-link-button" type="button" onClick={() => onSelect(order)}>{order.id}</button><small>{order.date}</small></td><td><b>{order.name}</b><small>{order.email}</small></td><td>{order.items}</td><td><b>{money(order.total)}</b></td><td><code>{order.reference || 'Not submitted'}</code></td><td><Status value={order.status} /></td><td><div className="row-actions">{canManage && <>{order.status === 'Awaiting payment' && <button className="danger" type="button" onClick={() => onUpdate(order.id, 'Rejected')} aria-label={`Close unpaid order ${order.id}`} title={`Close unpaid order ${order.id}`}><XCircle aria-hidden="true" /></button>}{order.status === 'Pending verification' && <><button type="button" onClick={() => onUpdate(order.id, 'Verified')} aria-label={`Verify ${order.id}`} title={`Verify payment for ${order.id}`}><CheckCircle2 aria-hidden="true" /></button><button className="danger" type="button" onClick={() => onUpdate(order.id, 'Rejected')} aria-label={`Reject ${order.id}`} title={`Reject payment for ${order.id}`}><XCircle aria-hidden="true" /></button></>} {order.status === 'Verified' && <button type="button" onClick={() => onUpdate(order.id, 'Access sent')}>Send access</button>}</>}<button type="button" onClick={() => onSelect(order)}>Details</button></div></td></tr>)}</tbody></table></TableWrap>
     {!visible.length && <Empty icon={ShoppingBag} title="No matching orders" copy="Change the search or status filter to see more orders." />}
   </Panel>;
 }
@@ -429,14 +599,21 @@ function TemplatesView({templates, query, setQuery, statusFilter, setStatusFilte
   </Panel>;
 }
 
-function CategoriesView({categories, setCategories, onAdd}: {categories: Category[]; setCategories: React.Dispatch<React.SetStateAction<Category[]>>; onAdd: (event: FormEvent<HTMLFormElement>) => void}) {
-  const [uploadingCat, setUploadingCat] = useState<string|null>(null);
-  return <div className="admin-split"><Panel title="Categories"><TableWrap><table className="admin-table"><thead><tr><th>Category</th><th>Slug</th><th>Image</th><th>Kits</th><th>Status</th><th>Actions</th></tr></thead><tbody>{categories.map(category => <tr key={category.id}><td><b>{category.name}</b><small>{category.description}</small></td><td><code>{category.slug}</code></td><td>{category.imageUrl ? <img src={category.imageUrl} alt={category.name} style={{width:40,height:40,objectFit:'cover',borderRadius:4}} /> : uploadingCat === category.id ? <small>Uploading…</small> : <label style={{cursor:'pointer',fontSize:12,color:'var(--accent)'}}><input type="file" accept="image/*" hidden onChange={async e => {const file = e.target.files?.[0]; if (!file) return; setUploadingCat(category.id); try {const result = await uploadAdminAsset(file, 'Cover'); setCategories(current => current.map(item => item.id === category.id ? {...item, imageUrl: result.publicUrl} : item));} catch(err) {console.error(err);} setUploadingCat(null);}} />Upload</label>}</td><td>{category.productCount}</td><td><Status value={category.status} /></td><td><div className="row-actions"><button type="button" onClick={() => setCategories(current => current.map(item => item.id === category.id ? {...item, status: item.status === 'Active' ? 'Hidden' : 'Active'} : item))}>{category.status === 'Active' ? 'Hide' : 'Activate'}</button><button className="danger" type="button" aria-label={`Delete ${category.name}`} title={`Delete ${category.name}`} onClick={() => {if (window.confirm(`Delete ${category.name}? Assigned kits will remain available but become uncategorised until you assign a new category.`)) setCategories(current => current.filter(item => item.id !== category.id));}}><Trash2 aria-hidden="true" /></button></div></td></tr>)}</tbody></table></TableWrap></Panel><Panel title="Add category"><form className="admin-form" onSubmit={onAdd}><label>Category name<input required name="name" placeholder="e.g. Education & Courses" /></label><label>Description<textarea required name="description" rows={5} placeholder="Who this category is for" /></label><button className="admin-primary" type="submit"><Plus aria-hidden="true" />Add category</button></form></Panel></div>;
+function CategoriesView({categories, query, setQuery, statusFilter, setStatusFilter, onAdd, onEdit, onToggle, onDelete}: {categories: Category[]; query: string; setQuery: (value: string) => void; statusFilter: string; setStatusFilter: (value: string) => void; onAdd: () => void; onEdit: (category: Category | 'new') => void; onToggle: (category: Category) => void; onDelete: (category: Category) => void}) {
+  return <Panel title="Category catalog" action={<button type="button" onClick={onAdd}><Plus aria-hidden="true" />Add category</button>}>
+    <div className="admin-toolbar"><label><Search aria-hidden="true" /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search categories" aria-label="Search categories" /></label><select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} aria-label="Filter categories by status"><option>All statuses</option><option>Active</option><option>Hidden</option></select></div>
+    <TableWrap><table className="admin-table"><thead><tr><th>Category</th><th>Slug</th><th>Artwork</th><th>Kits</th><th>Status</th><th>Actions</th></tr></thead><tbody>{categories.map(category => <tr key={category.id}><td><b>{category.name}</b><small>{category.description}</small></td><td><code>{category.slug}</code></td><td>{category.imageUrl ? <img className="admin-catalog-thumb" src={category.imageUrl} alt={category.name} /> : <span className="admin-asset-empty"><ImageIcon aria-hidden="true" />No artwork</span>}</td><td>{category.productCount}</td><td><Status value={category.status} /></td><td><div className="row-actions"><button type="button" onClick={() => onEdit(category)} aria-label={`Edit ${category.name}`} title={`Edit ${category.name}`}><Pencil aria-hidden="true" /></button><button type="button" onClick={() => onToggle(category)}>{category.status === 'Active' ? 'Hide' : 'Activate'}</button><button className="danger" type="button" aria-label={`Delete ${category.name}`} title={`Delete ${category.name}`} onClick={() => onDelete(category)}><Trash2 aria-hidden="true" /></button></div></td></tr>)}</tbody></table></TableWrap>
+    {!categories.length && <Empty icon={FolderTree} title="No matching categories" copy="Change the search or status filter, or add a new category." />}
+  </Panel>;
 }
 
-function CollectionsView({collections, setCollections, onAdd}: {collections: Collection[]; setCollections: React.Dispatch<React.SetStateAction<Collection[]>>; onAdd: (event: FormEvent<HTMLFormElement>) => void}) {
-  const [uploadingCol, setUploadingCol] = useState<string|null>(null);
-  return <div className="admin-split"><Panel title="Collections"><TableWrap><table className="admin-table"><thead><tr><th>Collection</th><th>Image</th><th>Categories</th><th>Status</th><th>Actions</th></tr></thead><tbody>{collections.map(collection => <tr key={collection.id}><td><b>{collection.name}</b><small>{collection.description}</small></td><td>{collection.imageUrl ? <img src={collection.imageUrl} alt={collection.name} style={{width:40,height:40,objectFit:'cover',borderRadius:4}} /> : uploadingCol === collection.id ? <small>Uploading…</small> : <label style={{cursor:'pointer',fontSize:12,color:'var(--accent)'}}><input type="file" accept="image/*" hidden onChange={async e => {const file = e.target.files?.[0]; if (!file) return; setUploadingCol(collection.id); try {const result = await uploadAdminAsset(file, 'Cover'); setCollections(current => current.map(item => item.id === collection.id ? {...item, imageUrl: result.publicUrl} : item));} catch(err) {console.error(err);} setUploadingCol(null);}} />Upload</label>}</td><td>{collection.categoryIds.length}</td><td><Status value={collection.status} /></td><td><div className="row-actions"><button type="button" onClick={() => setCollections(current => current.map(item => item.id === collection.id ? {...item, status: item.status === 'Published' ? 'Draft' : 'Published'} : item))}>{collection.status === 'Published' ? 'Unpublish' : 'Publish'}</button><button className="danger" type="button" aria-label={`Delete ${collection.name}`} title={`Delete ${collection.name}`} onClick={() => {if (window.confirm(`Delete ${collection.name}? Assigned kits will remain available but will no longer belong to this collection.`)) setCollections(current => current.filter(item => item.id !== collection.id));}}><Trash2 aria-hidden="true" /></button></div></td></tr>)}</tbody></table></TableWrap></Panel><Panel title="Create collection"><form className="admin-form" onSubmit={onAdd}><label>Collection name<input required name="name" placeholder="e.g. Summer Launch Kits" /></label><label>Description<textarea required name="description" rows={4} /></label><label>Initial status<select name="status"><option>Draft</option><option>Published</option></select></label><button className="admin-primary" type="submit"><Plus aria-hidden="true" />Create collection</button></form></Panel></div>;
+function CollectionsView({collections, categories, query, setQuery, statusFilter, setStatusFilter, onAdd, onEdit, onToggle, onDelete}: {collections: Collection[]; categories: Category[]; query: string; setQuery: (value: string) => void; statusFilter: string; setStatusFilter: (value: string) => void; onAdd: () => void; onEdit: (collection: Collection | 'new') => void; onToggle: (collection: Collection) => void; onDelete: (collection: Collection) => void}) {
+  const categoryNames = new Map(categories.map(category => [category.id, category.name]));
+  return <Panel title="Collection catalog" action={<button type="button" onClick={onAdd}><Plus aria-hidden="true" />Add collection</button>}>
+    <div className="admin-toolbar"><label><Search aria-hidden="true" /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search collections" aria-label="Search collections" /></label><select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} aria-label="Filter collections by status"><option>All statuses</option><option>Published</option><option>Draft</option></select></div>
+    <TableWrap><table className="admin-table"><thead><tr><th>Collection</th><th>Artwork</th><th>Categories</th><th>Status</th><th>Actions</th></tr></thead><tbody>{collections.map(collection => <tr key={collection.id}><td><b>{collection.name}</b><small>{collection.description}</small></td><td>{collection.imageUrl ? <img className="admin-catalog-thumb" src={collection.imageUrl} alt={collection.name} /> : <span className="admin-asset-empty"><ImageIcon aria-hidden="true" />No artwork</span>}</td><td>{collection.categoryIds.length ? collection.categoryIds.map(id => categoryNames.get(id) || id).join(', ') : 'All categories'}</td><td><Status value={collection.status} /></td><td><div className="row-actions"><button type="button" onClick={() => onEdit(collection)} aria-label={`Edit ${collection.name}`} title={`Edit ${collection.name}`}><Pencil aria-hidden="true" /></button><button type="button" onClick={() => onToggle(collection)}>{collection.status === 'Published' ? 'Unpublish' : 'Publish'}</button><button className="danger" type="button" aria-label={`Delete ${collection.name}`} title={`Delete ${collection.name}`} onClick={() => onDelete(collection)}><Trash2 aria-hidden="true" /></button></div></td></tr>)}</tbody></table></TableWrap>
+    {!collections.length && <Empty icon={PackageCheck} title="No matching collections" copy="Change the search or status filter, or add a new collection." />}
+  </Panel>;
 }
 
 function MediaView({media, setMedia, onUpload, templates, setTemplates}: {media: AdminMedia[]; setMedia: React.Dispatch<React.SetStateAction<AdminMedia[]>>; onUpload: (files: FileList | null) => void; templates: AdminTemplate[]; setTemplates: React.Dispatch<React.SetStateAction<AdminTemplate[]>>}) {
@@ -468,8 +645,16 @@ function TemplateEditor({template, categories, collections, onClose, onSave}: {t
   return <div className="admin-drawer-backdrop" role="presentation"><section className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="template-editor-title"><header><div><span>TEMPLATE CATALOG</span><h2 id="template-editor-title">{template ? 'Edit template' : 'Add a new template'}</h2></div><button type="button" onClick={onClose} aria-label="Close template editor"><X aria-hidden="true" /></button></header><form className="template-editor-form" onSubmit={onSave}><label className="wide">Template title<input required name="title" defaultValue={template?.title} /></label><label>Category<select required name="categoryId" defaultValue={template?.categoryId || categories[0]?.id}>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><label>Collection<select name="collectionId" defaultValue={template?.collectionId || ''}><option value="">No collection</option>{collections.map(collection => <option key={collection.id} value={collection.id}>{collection.name}</option>)}</select></label><label>Price<input required name="price" type="number" min="0" defaultValue={template?.price || 699} /></label><label>Compare-at price<input required name="mrp" type="number" min="0" defaultValue={template?.mrp || 1299} /></label><label>Layouts<input required name="layoutCount" type="number" min="1" defaultValue={template?.layoutCount || 60} /></label><label>Status<select name="status" defaultValue={template?.status || 'Draft'}><option>Draft</option><option>Published</option><option>Archived</option></select></label><label className="wide">Badge<input name="badge" defaultValue={template?.badge || 'NEW'} /></label><label className="wide">Short description<textarea required name="description" rows={5} defaultValue={template?.description} /></label><label className="file-field"><ImageIcon aria-hidden="true" /><span><b>Cover visual</b><small>{template?.coverName || 'No cover uploaded yet'}</small>{template?.coverUrl && <img src={template.coverUrl} alt="Current cover" style={{width: '100%', maxHeight: '120px', objectFit: 'cover', borderRadius: '4px', marginTop: '6px'}} />}</span><input name="cover" type="file" accept="image/*" /></label><label className="file-field"><FileArchive aria-hidden="true" /><span><b>Delivery file</b><small>{template?.deliveryName || 'No delivery file uploaded yet'}</small></span><input name="delivery" type="file" accept=".zip,.pdf" /></label><footer><button type="button" onClick={onClose}>Cancel</button><button className="admin-primary" type="submit"><Save aria-hidden="true" />{template ? 'Save changes' : 'Create template'}</button></footer></form></section></div>;
 }
 
-function OrderDrawer({order, onClose, onUpdate}: {order: AdminOrder; onClose: () => void; onUpdate: (id: string, status: AdminOrderStatus) => void}) {
-  return <div className="admin-drawer-backdrop" role="presentation"><section className="admin-drawer order-drawer" role="dialog" aria-modal="true" aria-labelledby="order-drawer-title"><header><div><span>ORDER DETAILS</span><h2 id="order-drawer-title">{order.id}</h2></div><button type="button" onClick={onClose} aria-label="Close order details"><X aria-hidden="true" /></button></header><div className="order-detail-body"><div className="order-detail-status"><Status value={order.status} /><span>{order.date}</span></div><dl><div><dt>Customer</dt><dd>{order.name}<small>{order.email}</small></dd></div><div><dt>Order total</dt><dd>{money(order.total)}</dd></div><div><dt>Items</dt><dd>{order.items}</dd></div><div><dt>UPI reference</dt><dd><code>{order.reference}</code></dd></div></dl><section><h3>Operations timeline</h3><ol><li className="done"><CheckCircle2 aria-hidden="true" /><span><b>Order submitted</b><small>Customer completed checkout.</small></span></li><li className={order.status !== 'Pending verification' && order.status !== 'Rejected' ? 'done' : ''}><ShieldCheck aria-hidden="true" /><span><b>Payment verification</b><small>Confirm amount and unique transaction reference.</small></span></li><li className={order.status === 'Access sent' ? 'done' : ''}><PackageCheck aria-hidden="true" /><span><b>Template access</b><small>Send protected access and customer instructions.</small></span></li></ol></section><footer>{order.status === 'Pending verification' && <><button className="admin-danger" type="button" onClick={() => onUpdate(order.id, 'Rejected')}><XCircle aria-hidden="true" />Reject payment</button><button className="admin-primary" type="button" onClick={() => onUpdate(order.id, 'Verified')}><CheckCircle2 aria-hidden="true" />Verify payment</button></>}{order.status === 'Verified' && <button className="admin-primary" type="button" onClick={() => onUpdate(order.id, 'Access sent')}><PackageCheck aria-hidden="true" />Mark access sent</button>}</footer></div></section></div>;
+function CategoryEditor({category, onClose, onSave}: {category: Category | null; onClose: () => void; onSave: (event: FormEvent<HTMLFormElement>) => void}) {
+  return <div className="admin-drawer-backdrop" role="presentation"><section className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="category-editor-title"><header><div><span>CATEGORY CATALOG</span><h2 id="category-editor-title">{category ? 'Edit category' : 'Add a new category'}</h2></div><button type="button" onClick={onClose} aria-label="Close category editor"><X aria-hidden="true" /></button></header><form className="template-editor-form" onSubmit={onSave}><label className="wide">Category name<input required name="name" defaultValue={category?.name} placeholder="e.g. Education & Courses" /></label><label className="wide">URL slug<input name="slug" defaultValue={category?.slug} placeholder="Generated from the category name" /><small>Lowercase letters, numbers and hyphens only.</small></label><label>Status<select name="status" defaultValue={category?.status || 'Active'}><option>Active</option><option>Hidden</option></select></label><label className="wide">Description<textarea required name="description" rows={6} defaultValue={category?.description} placeholder="Who this category is for and what visitors will find." /></label><label className="file-field wide"><ImageIcon aria-hidden="true" /><span><b>Category artwork</b><small>{category?.imageUrl ? 'Current artwork will be kept unless you upload a replacement.' : 'Upload a storefront category image.'}</small>{category?.imageUrl && <img className="admin-editor-preview" src={category.imageUrl} alt="Current category artwork" />}</span><input type="file" accept="image/*" name="image" /></label><footer><button type="button" onClick={onClose}>Cancel</button><button className="admin-primary" type="submit"><Save aria-hidden="true" />{category ? 'Save category' : 'Create category'}</button></footer></form></section></div>;
+}
+
+function CollectionEditor({collection, categories, onClose, onSave}: {collection: Collection | null; categories: Category[]; onClose: () => void; onSave: (event: FormEvent<HTMLFormElement>) => void}) {
+  return <div className="admin-drawer-backdrop" role="presentation"><section className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="collection-editor-title"><header><div><span>COLLECTION CATALOG</span><h2 id="collection-editor-title">{collection ? 'Edit collection' : 'Add a new collection'}</h2></div><button type="button" onClick={onClose} aria-label="Close collection editor"><X aria-hidden="true" /></button></header><form className="template-editor-form" onSubmit={onSave}><label className="wide">Collection name<input required name="name" defaultValue={collection?.name} placeholder="e.g. Summer Launch Kits" /></label><label>Status<select name="status" defaultValue={collection?.status || 'Draft'}><option>Draft</option><option>Published</option></select></label><label className="wide">Description<textarea required name="description" rows={6} defaultValue={collection?.description} placeholder="Explain the theme and purpose of this collection." /></label><label className="wide">Included categories<select className="admin-multi-select" multiple name="categoryIds" defaultValue={collection?.categoryIds || []} size={Math.min(Math.max(categories.length, 3), 6)}>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select><small>Use Ctrl or Cmd to select multiple categories. Leave empty to make the collection available across all categories.</small></label><label className="file-field wide"><ImageIcon aria-hidden="true" /><span><b>Collection artwork</b><small>{collection?.imageUrl ? 'Current artwork will be kept unless you upload a replacement.' : 'Upload a storefront collection image.'}</small>{collection?.imageUrl && <img className="admin-editor-preview" src={collection.imageUrl} alt="Current collection artwork" />}</span><input type="file" accept="image/*" name="image" /></label><footer><button type="button" onClick={onClose}>Cancel</button><button className="admin-primary" type="submit"><Save aria-hidden="true" />{collection ? 'Save collection' : 'Create collection'}</button></footer></form></section></div>;
+}
+
+function OrderDrawer({order, canManage, onClose, onUpdate}: {order: AdminOrder; canManage: boolean; onClose: () => void; onUpdate: (id: string, status: AdminOrderStatus) => void}) {
+  return <div className="admin-drawer-backdrop" role="presentation"><section className="admin-drawer order-drawer" role="dialog" aria-modal="true" aria-labelledby="order-drawer-title"><header><div><span>ORDER DETAILS</span><h2 id="order-drawer-title">{order.id}</h2></div><button type="button" onClick={onClose} aria-label="Close order details"><X aria-hidden="true" /></button></header><div className="order-detail-body"><div className="order-detail-status"><Status value={order.status} /><span>{order.date}</span></div><dl><div><dt>Customer</dt><dd>{order.name}<small>{order.email}</small></dd></div><div><dt>Order total</dt><dd>{money(order.total)}</dd></div><div><dt>Items</dt><dd>{order.items}</dd></div><div><dt>UPI reference</dt><dd><code>{order.reference}</code></dd></div></dl><section><h3>Operations timeline</h3><ol><li className="done"><CheckCircle2 aria-hidden="true" /><span><b>Order submitted</b><small>Customer completed checkout.</small></span></li><li className={order.status !== 'Pending verification' && order.status !== 'Rejected' ? 'done' : ''}><ShieldCheck aria-hidden="true" /><span><b>Payment verification</b><small>Confirm amount and unique transaction reference.</small></span></li><li className={order.status === 'Access sent' ? 'done' : ''}><PackageCheck aria-hidden="true" /><span><b>Template access</b><small>Send protected access and customer instructions.</small></span></li></ol></section><footer>{canManage && <>{order.status === 'Pending verification' && <><button className="admin-danger" type="button" onClick={() => onUpdate(order.id, 'Rejected')}><XCircle aria-hidden="true" />Reject payment</button><button className="admin-primary" type="button" onClick={() => onUpdate(order.id, 'Verified')}><CheckCircle2 aria-hidden="true" />Verify payment</button></>}{order.status === 'Verified' && <button className="admin-primary" type="button" onClick={() => onUpdate(order.id, 'Access sent')}><PackageCheck aria-hidden="true" />Mark access sent</button>}</>}</footer></div></section></div>;
 }
 
 function Panel({title, action, children}: {title: string; action?: React.ReactNode; children: React.ReactNode}) {

@@ -97,6 +97,8 @@ function Header() {
   const {cart, customer} = useStore();
   const path = usePathname();
   const headerRef = useRef<HTMLElement>(null);
+  const navigationRef = useRef<HTMLElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState<MenuName | null>(null);
 
@@ -109,8 +111,10 @@ function Header() {
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
+        const mobileMenuWasOpen = Boolean(headerRef.current?.querySelector('nav.open'));
         setActiveMenu(null);
         setMobileOpen(false);
+        if (mobileMenuWasOpen) window.requestAnimationFrame(() => menuButtonRef.current?.focus());
       }
     }
 
@@ -121,6 +125,11 @@ function Header() {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    window.requestAnimationFrame(() => navigationRef.current?.querySelector<HTMLElement>('a, button')?.focus());
+  }, [mobileOpen]);
 
   if (path.startsWith('/admin')) return null;
   const count = cart.reduce((total, item) => total + item.qty, 0);
@@ -142,8 +151,9 @@ function Header() {
       <Link href="/" className="store-brand" aria-label="AnyKit Lab home" onClick={closeNavigation}>
         <BrandLockup preload />
       </Link>
-      <nav className={mobileOpen ? 'open' : ''} aria-label="Main navigation">
+      <nav ref={navigationRef} className={mobileOpen ? 'open' : ''} aria-label="Main navigation">
         <Link className={path === '/shop' ? 'active' : ''} href="/shop" onClick={closeNavigation}>Shop All</Link>
+        <Link className="mobile-account-link" href={customer ? '/account/profile' : '/login'} onClick={closeNavigation}>{customer ? `Account: ${firstName}` : 'Sign in / Account'}</Link>
         {(Object.keys(navigation) as MenuName[]).map(name => {
           const menu = navigation[name];
           const expanded = activeMenu === name;
@@ -191,6 +201,7 @@ function Header() {
           <ShoppingCart aria-hidden="true" /><span>Cart</span><b>{count}</b>
         </Link>
         <button
+          ref={menuButtonRef}
           className="store-menu"
           type="button"
           aria-label={mobileOpen ? 'Close menu' : 'Open menu'}

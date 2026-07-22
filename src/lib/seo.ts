@@ -33,7 +33,7 @@ export function buildMetadata({
   const ogImage = image.startsWith('http') ? image : `${SITE_URL}${image}`;
 
   return {
-    title,
+    ...(title ? {title} : {}),
     description,
     keywords: keywords?.length ? keywords : undefined,
     alternates: {canonical: url},
