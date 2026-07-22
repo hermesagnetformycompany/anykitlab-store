@@ -34,8 +34,12 @@ import {
   XCircle,
 } from 'lucide-react';
 import {FormEvent, useEffect, useRef, useState} from 'react';
+import {AdminMediaView, type MediaAssignmentOption} from '@/components/admin-media-view';
+import {MediaLibraryField} from '@/components/admin-media-picker';
+import {AdminTeamView} from '@/components/admin-team-view';
 import {BrandLockup} from '@/components/site';
 import {canAccessAdminTab, canManageOrderStatus, defaultAdminTeam, readAdminSession, type AdminRole, type AdminTeamMember} from '@/lib/admin-auth';
+import type {AdminMedia} from '@/lib/admin-media';
 import {
   money,
   type Category,
@@ -46,7 +50,6 @@ import {getSupabaseBrowserClient} from '@/lib/supabase/client';
 
 type AdminTab = 'Overview' | 'Orders' | 'Templates' | 'Categories' | 'Collections' | 'Media' | 'Customers' | 'Team' | 'Reports' | 'Settings';
 type AdminTemplate = Product & {coverName: string; deliveryName: string; coverUrl?: string};
-type AdminMedia = {id: string; name: string; type: 'Cover' | 'Preview' | 'Video' | 'Delivery'; linkedTo: string; status: 'Ready' | 'Processing'; storagePath?: string; publicUrl?: string};
 type AdminOrderStatus = 'Awaiting payment' | 'Pending verification' | 'Verified' | 'Access sent' | 'Rejected';
 type AdminOrder = {id: string; date: string; name: string; email: string; total: number; reference: string; items: number; status: AdminOrderStatus};
 type StoreSettings = {storeName: string; supportEmail: string; upiId: string; verificationSla: string; senderName: string; heroImage1?: string; heroImage2?: string; heroImage3?: string};
@@ -87,8 +90,8 @@ async function uploadAdminAsset(file: File, type: AdminMedia['type']) {
   const {error} = await supabase.storage.from(bucket).upload(storagePath, file, {upsert: false});
   if (error) throw error;
   // Get the public URL for cover/preview images so they show on the storefront
-  const {data: publicUrlData} = supabase.storage.from(bucket).getPublicUrl(storagePath);
-  return {storagePath, publicUrl: publicUrlData.publicUrl};
+  const publicUrl = type === 'Delivery' ? '' : supabase.storage.from(bucket).getPublicUrl(storagePath).data.publicUrl;
+  return {storagePath, publicUrl};
 }
 
 function useAdminState<T>(key: string, initialValue: T, {autosave = true, enabled = true}: {autosave?: boolean; enabled?: boolean} = {}) {
@@ -176,19 +179,21 @@ export function AdminDashboard() {
   const [templates, setTemplates, templatesState] = useAdminState<AdminTemplate[]>('templates', initialTemplates, {autosave: false, enabled: catalogEnabled});
   const [categories, setCategories, categoriesState] = useAdminState<Category[]>('categories', [], {autosave: false, enabled: catalogEnabled});
   const [collections, setCollections, collectionsState] = useAdminState<Collection[]>('collections', [], {autosave: false, enabled: catalogEnabled});
-  const [media, setMedia, mediaState] = useAdminState<AdminMedia[]>('media', initialMedia, {enabled: catalogEnabled});
+  const [media, setMedia, mediaState] = useAdminState<AdminMedia[]>('media', initialMedia, {autosave: false, enabled: catalogEnabled});
   const [orders, setOrders, ordersState] = useAdminState<AdminOrder[]>('orders', [], {autosave: false, enabled: ordersEnabled});
-  const [team, setTeam, teamState] = useAdminState<AdminTeamMember[]>('team', defaultAdminTeam, {enabled: teamEnabled});
+  const [team, setTeam, teamState] = useAdminState<AdminTeamMember[]>('team', defaultAdminTeam, {autosave: false, enabled: teamEnabled});
   const [settings, setSettings, settingsState] = useAdminState<StoreSettings>('settings', initialSettings, {enabled: settingsEnabled});
   const [editingTemplate, setEditingTemplate] = useState<AdminTemplate | null | 'new'>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null | 'new'>(null);
   const [editingCollection, setEditingCollection] = useState<Collection | null | 'new'>(null);
+  const [editingTeam, setEditingTeam] = useState<AdminTeamMember | null | 'new'>(null);
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All statuses');
   const [toast, setToast] = useState('');
   const [mutationError, setMutationError] = useState('');
   const [mutationSaving, setMutationSaving] = useState(false);
+  const [mediaUploading, setMediaUploading] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -266,6 +271,24 @@ export function AdminDashboard() {
     }
   };
 
+  const uploadRegisteredAsset = async (file: File, type: AdminMedia['type']) => {
+    const uploaded = await uploadAdminAsset(file, type);
+    const response = await fetch('/api/admin/media', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name: file.name, type, storagePath: uploaded.storagePath, publicUrl: uploaded.publicUrl}),
+    });
+    const payload = await response.json() as {asset?: AdminMedia; error?: string};
+    if (!response.ok || !payload.asset) {
+      const bucket = type === 'Delivery' ? 'akl-deliveries' : 'akl-previews';
+      await getSupabaseBrowserClient().storage.from(bucket).remove([uploaded.storagePath]);
+      throw new Error(payload.error || 'The uploaded file could not be registered.');
+    }
+    setMedia(current => [payload.asset!, ...current.filter(item => item.id !== payload.asset!.id)]);
+    return payload.asset;
+  };
+
   const saveTemplate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -282,14 +305,14 @@ export function AdminDashboard() {
     const slug = current?.slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     let coverName = current?.coverName || '';
     let deliveryName = current?.deliveryName || '';
-    let coverUrl = current?.coverUrl || '';
+    let coverUrl = String(form.get('coverUrl') || current?.coverUrl || '');
     try {
       if (cover?.size) {
-        const result = await uploadAdminAsset(cover, 'Cover');
+        const result = await uploadRegisteredAsset(cover, 'Cover');
         coverName = result.storagePath;
         coverUrl = result.publicUrl;
       }
-      if (delivery?.size) deliveryName = (await uploadAdminAsset(delivery, 'Delivery')).storagePath;
+      if (delivery?.size) deliveryName = (await uploadRegisteredAsset(delivery, 'Delivery')).storagePath;
     } catch (error) {
       setToast(error instanceof Error ? error.message : 'Asset upload failed.');
       return;
@@ -375,10 +398,10 @@ export function AdminDashboard() {
       setToast('Another category already uses that slug.');
       return;
     }
-    let imageUrl = current?.imageUrl || '';
+    let imageUrl = String(form.get('imageUrl') || current?.imageUrl || '');
     const image = form.get('image') as File | null;
     try {
-      if (image?.size) imageUrl = (await uploadAdminAsset(image, 'Cover')).publicUrl;
+      if (image?.size) imageUrl = (await uploadRegisteredAsset(image, 'Cover')).publicUrl;
     } catch (error) {
       setToast(error instanceof Error ? error.message : 'Category image upload failed.');
       return;
@@ -402,10 +425,10 @@ export function AdminDashboard() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const current = editingCollection === 'new' || !editingCollection ? null : editingCollection;
-    let imageUrl = current?.imageUrl || '';
+    let imageUrl = String(form.get('imageUrl') || current?.imageUrl || '');
     const image = form.get('image') as File | null;
     try {
-      if (image?.size) imageUrl = (await uploadAdminAsset(image, 'Cover')).publicUrl;
+      if (image?.size) imageUrl = (await uploadRegisteredAsset(image, 'Cover')).publicUrl;
     } catch (error) {
       setToast(error instanceof Error ? error.message : 'Collection image upload failed.');
       return;
@@ -454,41 +477,180 @@ export function AdminDashboard() {
 
   const uploadMedia = async (files: FileList | null) => {
     if (!files?.length) return;
+    setMediaUploading(true);
+    setMutationError('');
+    const additions: AdminMedia[] = [];
     try {
-      const additions = await Promise.all(Array.from(files).map(async (file, index): Promise<AdminMedia> => {
+      for (const file of Array.from(files)) {
         const type: AdminMedia['type'] = file.name.toLowerCase().endsWith('.zip') || file.type === 'application/pdf' ? 'Delivery' : file.type.startsWith('video/') ? 'Video' : 'Cover';
-        const result = await uploadAdminAsset(file, type);
-        return {id: `med-${Date.now()}-${index}`, name: file.name, type, linkedTo: 'Unassigned', status: 'Ready', storagePath: result.storagePath, publicUrl: result.publicUrl};
-      }));
-      setMedia(current => [...additions, ...current]);
-      setToast(`${additions.length} asset${additions.length === 1 ? '' : 's'} uploaded to Supabase.`);
+        additions.push(await uploadRegisteredAsset(file, type));
+      }
+      setToast(`${additions.length} asset${additions.length === 1 ? '' : 's'} uploaded and added to the media library.`);
     } catch (error) {
-      setToast(error instanceof Error ? error.message : 'Asset upload failed.');
+      setMutationError(error instanceof Error ? error.message : 'Asset upload failed.');
+    } finally {
+      setMediaUploading(false);
     }
   };
 
-  const addTeamMember = (event: FormEvent<HTMLFormElement>) => {
+  const assignMedia = async (assetId: string, assignment: MediaAssignmentOption) => {
+    setMutationSaving(true);
+    setMutationError('');
+    try {
+      const response = await fetch(`/api/admin/media/${encodeURIComponent(assetId)}`, {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(assignment),
+      });
+      const payload = await response.json() as {error?: string; publicUrl?: string};
+      if (!response.ok || !payload.publicUrl) throw new Error(payload.error || 'Unable to assign the image.');
+      const publicUrl = payload.publicUrl;
+      const asset = media.find(item => item.id === assetId);
+      if (assignment.target.startsWith('product-')) {
+        const product = templates.find(item => item.id === assignment.targetId);
+        if (product) {
+          setTemplates(current => current.map(item => item.id === product.id ? assignment.target === 'product-cover'
+            ? {...item, coverUrl: publicUrl, coverName: asset?.storagePath || item.coverName}
+            : {...item, previewUrl: item.previewUrl || publicUrl, previewUrls: [...new Set([...(item.previewUrls || []), publicUrl])]} : item));
+          setMedia(current => current.map(item => item.id === assetId ? {...item, type: assignment.target === 'product-cover' ? 'Cover' : 'Preview', linkedTo: product.slug} : item));
+        }
+      } else if (assignment.target === 'category') {
+        setCategories(current => current.map(item => item.id === assignment.targetId ? {...item, imageUrl: publicUrl} : item));
+      } else if (assignment.target === 'collection') {
+        setCollections(current => current.map(item => item.id === assignment.targetId ? {...item, imageUrl: publicUrl} : item));
+      } else {
+        const field = assignment.target === 'hero-1' ? 'heroImage1' : assignment.target === 'hero-2' ? 'heroImage2' : 'heroImage3';
+        setSettings(current => ({...current, [field]: publicUrl}));
+      }
+      setToast('Image assigned and the storefront cache refreshed.');
+      return true;
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : 'Unable to assign the image.');
+      return false;
+    } finally {
+      setMutationSaving(false);
+    }
+  };
+
+  const deleteMedia = async (asset: AdminMedia) => {
+    if (!window.confirm(`Delete “${asset.name}”? Any storefront placement using it will be cleared.`)) return;
+    setMutationSaving(true);
+    setMutationError('');
+    try {
+      const response = await fetch(`/api/admin/media/${encodeURIComponent(asset.id)}`, {method: 'DELETE', credentials: 'same-origin'});
+      const payload = await response.json() as {error?: string};
+      if (!response.ok) throw new Error(payload.error || 'Unable to delete the media asset.');
+      setMedia(current => current.filter(item => item.id !== asset.id));
+      setTemplates(current => current.map(item => ({
+        ...item,
+        coverUrl: item.coverUrl === asset.publicUrl ? '' : item.coverUrl,
+        coverName: item.coverUrl === asset.publicUrl ? '' : item.coverName,
+        previewUrl: item.previewUrl === asset.publicUrl ? undefined : item.previewUrl,
+        previewUrls: item.previewUrls?.filter(url => url !== asset.publicUrl),
+      })));
+      setCategories(current => current.map(item => item.imageUrl === asset.publicUrl ? {...item, imageUrl: ''} : item));
+      setCollections(current => current.map(item => item.imageUrl === asset.publicUrl ? {...item, imageUrl: ''} : item));
+      setSettings(current => ({
+        ...current,
+        heroImage1: current.heroImage1 === asset.publicUrl ? '' : current.heroImage1,
+        heroImage2: current.heroImage2 === asset.publicUrl ? '' : current.heroImage2,
+        heroImage3: current.heroImage3 === asset.publicUrl ? '' : current.heroImage3,
+      }));
+      setToast('Media asset deleted and its storefront placements cleared.');
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : 'Unable to delete the media asset.');
+    } finally {
+      setMutationSaving(false);
+    }
+  };
+
+  const saveTeamMember = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const email = String(form.get('email')).trim().toLowerCase();
-    setTeam(current => [...current, {id: `team-${Date.now()}`, name: String(form.get('name')).trim(), email, loginId: String(form.get('loginId')).trim().toLowerCase() || email, temporaryPassword: String(form.get('temporaryPassword')), role: String(form.get('role')) as AdminRole, status: 'Invited'}]);
-    event.currentTarget.reset();
-    setToast('Team invitation created. Activate the member when they are ready to sign in.');
+    const current = editingTeam === 'new' || !editingTeam ? null : editingTeam;
+    const body = current ? {
+      name: String(form.get('name') || ''),
+      role: String(form.get('role') || ''),
+      status: String(form.get('status') || ''),
+    } : {
+      name: String(form.get('name') || ''),
+      email: String(form.get('email') || ''),
+      temporaryPassword: String(form.get('temporaryPassword') || ''),
+      role: String(form.get('role') || ''),
+    };
+    setMutationSaving(true);
+    setMutationError('');
+    try {
+      const response = await fetch(current ? `/api/admin/team/${encodeURIComponent(current.id)}` : '/api/admin/team', {
+        method: current ? 'PUT' : 'POST',
+        credentials: 'same-origin',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body),
+      });
+      const payload = await response.json() as {member?: AdminTeamMember; error?: string};
+      if (!response.ok || !payload.member) throw new Error(payload.error || 'Unable to save the team member.');
+      setTeam(all => current ? all.map(member => member.id === current.id ? payload.member! : member) : [payload.member!, ...all]);
+      setEditingTeam(null);
+      setToast(current ? 'Team member updated.' : 'Team invitation created.');
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : 'Unable to save the team member.');
+    } finally {
+      setMutationSaving(false);
+    }
+  };
+
+  const changeTeamStatus = async (member: AdminTeamMember, status: AdminTeamMember['status']) => {
+    setMutationSaving(true);
+    setMutationError('');
+    try {
+      const response = await fetch(`/api/admin/team/${encodeURIComponent(member.id)}`, {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: member.name, role: member.role, status}),
+      });
+      const payload = await response.json() as {member?: AdminTeamMember; error?: string};
+      if (!response.ok || !payload.member) throw new Error(payload.error || 'Unable to change team access.');
+      setTeam(current => current.map(item => item.id === member.id ? payload.member! : item));
+      setToast(status === 'Active' ? 'Team access activated.' : 'Team access suspended.');
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : 'Unable to change team access.');
+    } finally {
+      setMutationSaving(false);
+    }
+  };
+
+  const removeTeamAccess = async (member: AdminTeamMember) => {
+    if (!window.confirm(`Remove administrator access for ${member.name}? Their account will be suspended.`)) return;
+    setMutationSaving(true);
+    setMutationError('');
+    try {
+      const response = await fetch(`/api/admin/team/${encodeURIComponent(member.id)}`, {method: 'DELETE', credentials: 'same-origin'});
+      const payload = await response.json() as {error?: string};
+      if (!response.ok) throw new Error(payload.error || 'Unable to remove team access.');
+      setTeam(current => current.map(item => item.id === member.id ? {...item, status: 'Suspended'} : item));
+      setToast('Team access suspended.');
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : 'Unable to remove team access.');
+    } finally {
+      setMutationSaving(false);
+    }
   };
 
   const saveSettings = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    let heroImage1 = settings.heroImage1 || '';
-    let heroImage2 = settings.heroImage2 || '';
-    let heroImage3 = settings.heroImage3 || '';
+    let heroImage1 = String(form.get('heroImage1Url') || settings.heroImage1 || '');
+    let heroImage2 = String(form.get('heroImage2Url') || settings.heroImage2 || '');
+    let heroImage3 = String(form.get('heroImage3Url') || settings.heroImage3 || '');
     try {
       const file1 = form.get('heroImage1') as File | null;
       const file2 = form.get('heroImage2') as File | null;
       const file3 = form.get('heroImage3') as File | null;
-      if (file1?.size) heroImage1 = (await uploadAdminAsset(file1, 'Cover')).publicUrl;
-      if (file2?.size) heroImage2 = (await uploadAdminAsset(file2, 'Cover')).publicUrl;
-      if (file3?.size) heroImage3 = (await uploadAdminAsset(file3, 'Cover')).publicUrl;
+      if (file1?.size) heroImage1 = (await uploadRegisteredAsset(file1, 'Cover')).publicUrl;
+      if (file2?.size) heroImage2 = (await uploadRegisteredAsset(file2, 'Cover')).publicUrl;
+      if (file3?.size) heroImage3 = (await uploadRegisteredAsset(file3, 'Cover')).publicUrl;
     } catch (error) {
       setToast(error instanceof Error ? error.message : 'Image upload failed.');
       return;
@@ -534,17 +696,17 @@ export function AdminDashboard() {
           {tab === 'Templates' && <TemplatesView templates={filteredTemplates} query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onEdit={setEditingTemplate} onDuplicate={duplicateTemplate} onArchive={toggleTemplateArchive} onDelete={deleteTemplate} />}
           {tab === 'Categories' && <CategoriesView categories={filteredCategories} query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onAdd={() => setEditingCategory('new')} onEdit={setEditingCategory} onToggle={toggleCategoryStatus} onDelete={deleteCategory} />}
           {tab === 'Collections' && <CollectionsView collections={filteredCollections} categories={categories} query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onAdd={() => setEditingCollection('new')} onEdit={setEditingCollection} onToggle={toggleCollectionStatus} onDelete={deleteCollection} />}
-          {tab === 'Media' && <MediaView media={media} setMedia={setMedia} onUpload={uploadMedia} templates={templates} setTemplates={setTemplates} />}
+          {tab === 'Media' && <AdminMediaView media={media} products={templates} categories={categories} collections={collections} settings={settings} busy={mutationSaving} uploading={mediaUploading} onUpload={uploadMedia} onAssign={assignMedia} onDelete={deleteMedia} />}
           {tab === 'Customers' && <CustomersView orders={orders} />}
-          {tab === 'Team' && <TeamView team={team} setTeam={setTeam} onAdd={addTeamMember} />}
+          {tab === 'Team' && <AdminTeamView team={team} query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} busy={mutationSaving} editing={editingTeam} onAdd={() => setEditingTeam('new')} onEdit={setEditingTeam} onClose={() => setEditingTeam(null)} onSave={saveTeamMember} onToggle={member => changeTeamStatus(member, member.status === 'Active' ? 'Suspended' : 'Active')} onRemove={removeTeamAccess} />}
           {tab === 'Reports' && <ReportsView orders={orders} templates={templates} categories={categories} onExport={exportOrders} />}
-          {tab === 'Settings' && <SettingsView settings={settings} onSave={saveSettings} />}
+          {tab === 'Settings' && <SettingsView settings={settings} media={media} onSave={saveSettings} />}
         </div>
       </section>
 
-      {editingTemplate && <TemplateEditor template={editingTemplate === 'new' ? null : editingTemplate} categories={categories} collections={collections} onClose={() => setEditingTemplate(null)} onSave={saveTemplate} />}
-      {editingCategory && <CategoryEditor category={editingCategory === 'new' ? null : editingCategory} onClose={() => setEditingCategory(null)} onSave={saveCategory} />}
-      {editingCollection && <CollectionEditor collection={editingCollection === 'new' ? null : editingCollection} categories={categories} onClose={() => setEditingCollection(null)} onSave={saveCollection} />}
+      {editingTemplate && <TemplateEditor template={editingTemplate === 'new' ? null : editingTemplate} categories={categories} collections={collections} media={media} onClose={() => setEditingTemplate(null)} onSave={saveTemplate} />}
+      {editingCategory && <CategoryEditor category={editingCategory === 'new' ? null : editingCategory} media={media} onClose={() => setEditingCategory(null)} onSave={saveCategory} />}
+      {editingCollection && <CollectionEditor collection={editingCollection === 'new' ? null : editingCollection} categories={categories} media={media} onClose={() => setEditingCollection(null)} onSave={saveCollection} />}
       {selectedOrder && <OrderDrawer order={selectedOrder} canManage={canManageOrderStatus(adminSession.role)} onClose={() => setSelectedOrder(null)} onUpdate={updateOrder} />}
       {toast && <div className="admin-toast" role="status"><Check aria-hidden="true" />{toast}</div>}
       {sidebarOpen && <button className="admin-sidebar-scrim" type="button" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
@@ -616,18 +778,9 @@ function CollectionsView({collections, categories, query, setQuery, statusFilter
   </Panel>;
 }
 
-function MediaView({media, setMedia, onUpload, templates, setTemplates}: {media: AdminMedia[]; setMedia: React.Dispatch<React.SetStateAction<AdminMedia[]>>; onUpload: (files: FileList | null) => void; templates: AdminTemplate[]; setTemplates: React.Dispatch<React.SetStateAction<AdminTemplate[]>>}) {
-  const [assigning, setAssigning] = useState<string | null>(null);
-  return <><Panel title="Upload assets"><label className="admin-dropzone"><UploadCloud aria-hidden="true" /><b>Upload covers, previews, video or delivery files</b><span>Choose multiple files. ZIP files are classified as protected delivery assets.</span><input type="file" multiple accept="image/*,video/*,.zip,.pdf" onChange={event => onUpload(event.target.files)} /></label></Panel><Panel title="Media library"><div className="admin-media-grid">{media.map(asset => <article key={asset.id}>{asset.publicUrl && asset.type !== 'Delivery' ? <img src={asset.publicUrl} alt={asset.name} style={{width: '100%', maxHeight: '100px', objectFit: 'cover', borderRadius: '4px', marginBottom: '6px'}} /> : <span style={{display: 'flex', justifyContent: 'center', padding: '20px'}}>{asset.type === 'Delivery' ? <FileArchive aria-hidden="true" size={32} /> : <ImageIcon aria-hidden="true" size={32} />}</span>}<div><b>{asset.name}</b><small>{asset.type} · {asset.linkedTo}</small></div><Status value={asset.status} />{asset.type === 'Cover' && asset.publicUrl && templates.length > 0 && (assigning === asset.id ? <select defaultValue="" onChange={event => {const slug = event.target.value; if (slug) {setTemplates(current => current.map(t => t.slug === slug ? {...t, coverUrl: asset.publicUrl} : t)); setMedia(current => current.map(m => m.id === asset.id ? {...m, linkedTo: slug} : m)); setAssigning(null);} else {setAssigning(null);}}}><option value="">Select template…</option>{templates.map(t => <option key={t.slug} value={t.slug}>{t.title}</option>)}</select> : <button type="button" style={{marginTop: '4px', fontSize: '12px'}} onClick={() => setAssigning(asset.id)}><ImageIcon aria-hidden="true" size={12} /> Assign to template</button>)}{asset.type === 'Cover' && !asset.publicUrl && <small style={{color: '#c44'}}>No public URL</small>}<button type="button" onClick={() => setMedia(current => current.filter(item => item.id !== asset.id))} aria-label={`Delete ${asset.name}`} title={`Delete ${asset.name}`}><Trash2 aria-hidden="true" /></button></article>)}</div>{!media.length && <Empty icon={ImageIcon} title="No media uploaded" copy="Upload cover images, previews, and delivery files using the dropzone above." />}</Panel></>;
-}
-
 function CustomersView({orders}: {orders: AdminOrder[]}) {
   const customers = Array.from(new Map(orders.map(order => [order.email, order])).values()).map(customer => {const customerOrders = orders.filter(order => order.email === customer.email); return {...customer, orderCount: customerOrders.length, lifetimeValue: customerOrders.reduce((sum, order) => sum + order.total, 0)};});
   return <Panel title="Customer directory"><TableWrap><table className="admin-table"><thead><tr><th>Customer</th><th>Contact</th><th>Orders</th><th>Lifetime value</th><th>Latest order</th><th>Status</th></tr></thead><tbody>{customers.map(customer => <tr key={customer.email}><td><b>{customer.name}</b></td><td>{customer.email}</td><td>{customer.orderCount}</td><td><b>{money(customer.lifetimeValue)}</b></td><td>{customer.id}<small>{customer.date}</small></td><td><Status value="Active" /></td></tr>)}</tbody></table></TableWrap></Panel>;
-}
-
-function TeamView({team, setTeam, onAdd}: {team: AdminTeamMember[]; setTeam: React.Dispatch<React.SetStateAction<AdminTeamMember[]>>; onAdd: (event: FormEvent<HTMLFormElement>) => void}) {
-  return <div className="admin-split"><Panel title="Team and permissions"><TableWrap><table className="admin-table"><thead><tr><th>Team member</th><th>Role</th><th>Access scope</th><th>Status</th><th>Actions</th></tr></thead><tbody>{team.map(member => <tr key={member.id}><td><b>{member.name}</b><small>{member.email}</small><small>User ID: {member.loginId || member.email}</small></td><td>{member.role}</td><td>{member.role === 'Owner' ? 'Full administration' : member.role === 'Catalog manager' ? 'Templates, categories, collections and media' : member.role === 'Payment reviewer' ? 'Orders, payments, customers and reports' : 'Orders and customers'}</td><td><Status value={member.status} /></td><td><div className="row-actions">{member.role !== 'Owner' && <><button type="button" onClick={() => setTeam(current => current.map(item => item.id === member.id ? {...item, status: item.status === 'Active' ? 'Invited' : 'Active'} : item))}>{member.status === 'Active' ? 'Suspend' : 'Activate'}</button><button className="danger" type="button" aria-label={`Remove ${member.name}`} title={`Remove ${member.name}`} onClick={() => setTeam(current => current.filter(item => item.id !== member.id))}><Trash2 aria-hidden="true" /></button></>}</div></td></tr>)}</tbody></table></TableWrap></Panel><Panel title="Invite team member"><form className="admin-form" onSubmit={onAdd}><label>Full name<input required name="name" placeholder="e.g. Priya Sharma" /></label><label>Email address<input required name="email" type="email" placeholder="priya@company.com" /></label><label>User ID<input required name="loginId" type="email" placeholder="priya@anykitlab.local" /><small>Used on the administrator sign-in page.</small></label><label>Temporary password<input required name="temporaryPassword" type="text" minLength={8} placeholder="Minimum 8 characters" /><small>Share this securely and change it in production.</small></label><label>Role<select name="role"><option>Catalog manager</option><option>Payment reviewer</option><option>Support</option></select></label><button className="admin-primary" type="submit"><ShieldCheck aria-hidden="true" />Create invitation</button></form></Panel></div>;
 }
 
 function ReportsView({orders, templates, categories, onExport}: {orders: AdminOrder[]; templates: AdminTemplate[]; categories: Category[]; onExport: () => void}) {
@@ -637,20 +790,62 @@ function ReportsView({orders, templates, categories, onExport}: {orders: AdminOr
   return <><section className="admin-metric-grid report-metrics"><article><span>Total submitted revenue</span><b>{money(revenue)}</b><small>All non-rejected orders</small></article><article><span>Average order value</span><b>{money(Math.round(revenue / Math.max(orders.length, 1)))}</b><small>Across {orders.length} orders</small></article><article><span>Catalog size</span><b>{templates.length}</b><small>{templates.filter(template => template.status === 'Draft').length} templates in draft</small></article><article><span>Payment approval rate</span><b>{Math.round((orders.filter(order => order.status !== 'Pending verification' && order.status !== 'Rejected').length / Math.max(orders.length, 1)) * 100)}%</b><small>Verified or delivered</small></article></section><div className="admin-dashboard-grid"><Panel title="Catalog by category"><div className="admin-bars">{categoryStats.map(stat => <div key={stat.name}><span><b>{stat.name}</b><em>{stat.count} kit{stat.count === 1 ? '' : 's'}</em></span><i><b style={{width: `${stat.value}%`}} /></i></div>)}</div></Panel><Panel title="Generate report"><div className="admin-report-form"><label>From<input type="date" /></label><label>To<input type="date" /></label><button className="admin-primary" type="button" onClick={onExport}><Download aria-hidden="true" />Export order CSV</button></div></Panel></div></>;
 }
 
-function SettingsView({settings, onSave}: {settings: StoreSettings; onSave: (event: FormEvent<HTMLFormElement>) => void}) {
-  return <Panel title="Store and delivery settings"><form className="admin-settings-form" onSubmit={onSave}><section><h2>Store identity</h2><p>Customer-facing contact and sender details.</p></section><div><label>Store name<input required name="storeName" defaultValue={settings.storeName} /></label><label>Support email<input required type="email" name="supportEmail" defaultValue={settings.supportEmail} /></label><label>Email sender name<input required name="senderName" defaultValue={settings.senderName} /></label></div><section><h2>Payment verification</h2><p>Manual payment instructions used by operations.</p></section><div><label>UPI ID<input required name="upiId" defaultValue={settings.upiId} /></label><label>Verification SLA<input required name="verificationSla" defaultValue={settings.verificationSla} /></label></div><section><h2>Home page hero images</h2><p>Upload cover visuals for the three hero cards on the storefront home page.</p></section><div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'12px'}}>{[['heroImage1','Hero card 1',settings.heroImage1],['heroImage2','Hero card 2',settings.heroImage2],['heroImage3','Hero card 3',settings.heroImage3]].map(([name,label,url]) => <label key={name} style={{display:'flex',flexDirection:'column',gap:'6px'}}><b>{label}</b>{url && <img src={url} alt={label} style={{width:'100%',height:80,objectFit:'cover',borderRadius:4}} />}<input type="file" accept="image/*" name={name} /></label>)}</div><button className="admin-primary" type="submit"><Save aria-hidden="true" />Save settings</button></form></Panel>;
+function SettingsView({settings, media, onSave}: {settings: StoreSettings; media: AdminMedia[]; onSave: (event: FormEvent<HTMLFormElement>) => void}) {
+  return <Panel title="Store and delivery settings"><form className="admin-settings-form" onSubmit={onSave}>
+    <section><h2>Store identity</h2><p>Customer-facing contact and sender details.</p></section>
+    <div><label>Store name<input required name="storeName" defaultValue={settings.storeName} /></label><label>Support email<input required type="email" name="supportEmail" defaultValue={settings.supportEmail} /></label><label>Email sender name<input required name="senderName" defaultValue={settings.senderName} /></label></div>
+    <section><h2>Payment verification</h2><p>Manual payment instructions used by operations.</p></section>
+    <div><label>UPI ID<input required name="upiId" defaultValue={settings.upiId} /></label><label>Verification SLA<input required name="verificationSla" defaultValue={settings.verificationSla} /></label></div>
+    <section><h2>Home page hero images</h2><p>Select uploaded media for each home-page card, or upload a new image directly.</p></section>
+    <div className="admin-settings-media">
+      <div><MediaLibraryField key={`hero-1-${settings.heroImage1}`} media={media} name="heroImage1Url" label="Hero card 1" value={settings.heroImage1} /><label className="admin-inline-upload">Upload replacement<input type="file" accept="image/*" name="heroImage1" /></label></div>
+      <div><MediaLibraryField key={`hero-2-${settings.heroImage2}`} media={media} name="heroImage2Url" label="Hero card 2" value={settings.heroImage2} /><label className="admin-inline-upload">Upload replacement<input type="file" accept="image/*" name="heroImage2" /></label></div>
+      <div><MediaLibraryField key={`hero-3-${settings.heroImage3}`} media={media} name="heroImage3Url" label="Hero card 3" value={settings.heroImage3} /><label className="admin-inline-upload">Upload replacement<input type="file" accept="image/*" name="heroImage3" /></label></div>
+    </div>
+    <button className="admin-primary" type="submit"><Save aria-hidden="true" />Save settings</button>
+  </form></Panel>;
 }
 
-function TemplateEditor({template, categories, collections, onClose, onSave}: {template: AdminTemplate | null; categories: Category[]; collections: Collection[]; onClose: () => void; onSave: (event: FormEvent<HTMLFormElement>) => void}) {
-  return <div className="admin-drawer-backdrop" role="presentation"><section className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="template-editor-title"><header><div><span>TEMPLATE CATALOG</span><h2 id="template-editor-title">{template ? 'Edit template' : 'Add a new template'}</h2></div><button type="button" onClick={onClose} aria-label="Close template editor"><X aria-hidden="true" /></button></header><form className="template-editor-form" onSubmit={onSave}><label className="wide">Template title<input required name="title" defaultValue={template?.title} /></label><label>Category<select required name="categoryId" defaultValue={template?.categoryId || categories[0]?.id}>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><label>Collection<select name="collectionId" defaultValue={template?.collectionId || ''}><option value="">No collection</option>{collections.map(collection => <option key={collection.id} value={collection.id}>{collection.name}</option>)}</select></label><label>Price<input required name="price" type="number" min="0" defaultValue={template?.price || 699} /></label><label>Compare-at price<input required name="mrp" type="number" min="0" defaultValue={template?.mrp || 1299} /></label><label>Layouts<input required name="layoutCount" type="number" min="1" defaultValue={template?.layoutCount || 60} /></label><label>Status<select name="status" defaultValue={template?.status || 'Draft'}><option>Draft</option><option>Published</option><option>Archived</option></select></label><label className="wide">Badge<input name="badge" defaultValue={template?.badge || 'NEW'} /></label><label className="wide">Short description<textarea required name="description" rows={5} defaultValue={template?.description} /></label><label className="file-field"><ImageIcon aria-hidden="true" /><span><b>Cover visual</b><small>{template?.coverName || 'No cover uploaded yet'}</small>{template?.coverUrl && <img src={template.coverUrl} alt="Current cover" style={{width: '100%', maxHeight: '120px', objectFit: 'cover', borderRadius: '4px', marginTop: '6px'}} />}</span><input name="cover" type="file" accept="image/*" /></label><label className="file-field"><FileArchive aria-hidden="true" /><span><b>Delivery file</b><small>{template?.deliveryName || 'No delivery file uploaded yet'}</small></span><input name="delivery" type="file" accept=".zip,.pdf" /></label><footer><button type="button" onClick={onClose}>Cancel</button><button className="admin-primary" type="submit"><Save aria-hidden="true" />{template ? 'Save changes' : 'Create template'}</button></footer></form></section></div>;
+function TemplateEditor({template, categories, collections, media, onClose, onSave}: {template: AdminTemplate | null; categories: Category[]; collections: Collection[]; media: AdminMedia[]; onClose: () => void; onSave: (event: FormEvent<HTMLFormElement>) => void}) {
+  return <div className="admin-drawer-backdrop" role="presentation"><section className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="template-editor-title"><header><div><span>TEMPLATE CATALOG</span><h2 id="template-editor-title">{template ? 'Edit template' : 'Add a new template'}</h2></div><button type="button" onClick={onClose} aria-label="Close template editor"><X aria-hidden="true" /></button></header><form className="template-editor-form" onSubmit={onSave}>
+    <label className="wide">Template title<input required name="title" defaultValue={template?.title} /></label>
+    <label>Category<select required name="categoryId" defaultValue={template?.categoryId || categories[0]?.id}>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+    <label>Collection<select name="collectionId" defaultValue={template?.collectionId || ''}><option value="">No collection</option>{collections.map(collection => <option key={collection.id} value={collection.id}>{collection.name}</option>)}</select></label>
+    <label>Price<input required name="price" type="number" min="0" defaultValue={template?.price || 699} /></label>
+    <label>Compare-at price<input required name="mrp" type="number" min="0" defaultValue={template?.mrp || 1299} /></label>
+    <label>Layouts<input required name="layoutCount" type="number" min="1" defaultValue={template?.layoutCount || 60} /></label>
+    <label>Status<select name="status" defaultValue={template?.status || 'Draft'}><option>Draft</option><option>Published</option><option>Archived</option></select></label>
+    <label className="wide">Badge<input name="badge" defaultValue={template?.badge || 'NEW'} /></label>
+    <label className="wide">Short description<textarea required name="description" rows={5} defaultValue={template?.description} /></label>
+    <MediaLibraryField key={`template-${template?.id || 'new'}-${template?.coverUrl || ''}`} media={media} name="coverUrl" label="Choose cover from Media" value={template?.coverUrl} help="The selected image becomes the template cover after saving." />
+    <label className="file-field wide"><ImageIcon aria-hidden="true" /><span><b>Or upload a new cover</b><small>{template?.coverName || 'The upload will be added to Supabase storage.'}</small>{template?.coverUrl && <img className="admin-editor-preview" src={template.coverUrl} alt="Current template cover" />}</span><input type="file" accept="image/*" name="cover" /></label>
+    <label className="file-field wide"><FileArchive aria-hidden="true" /><span><b>Protected delivery file</b><small>{template?.deliveryName || 'Upload ZIP or PDF customer delivery.'}</small></span><input type="file" accept=".zip,.pdf" name="delivery" /></label>
+    <footer><button type="button" onClick={onClose}>Cancel</button><button className="admin-primary" type="submit"><Save aria-hidden="true" />{template ? 'Save template' : 'Create template'}</button></footer>
+  </form></section></div>;
 }
 
-function CategoryEditor({category, onClose, onSave}: {category: Category | null; onClose: () => void; onSave: (event: FormEvent<HTMLFormElement>) => void}) {
-  return <div className="admin-drawer-backdrop" role="presentation"><section className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="category-editor-title"><header><div><span>CATEGORY CATALOG</span><h2 id="category-editor-title">{category ? 'Edit category' : 'Add a new category'}</h2></div><button type="button" onClick={onClose} aria-label="Close category editor"><X aria-hidden="true" /></button></header><form className="template-editor-form" onSubmit={onSave}><label className="wide">Category name<input required name="name" defaultValue={category?.name} placeholder="e.g. Education & Courses" /></label><label className="wide">URL slug<input name="slug" defaultValue={category?.slug} placeholder="Generated from the category name" /><small>Lowercase letters, numbers and hyphens only.</small></label><label>Status<select name="status" defaultValue={category?.status || 'Active'}><option>Active</option><option>Hidden</option></select></label><label className="wide">Description<textarea required name="description" rows={6} defaultValue={category?.description} placeholder="Who this category is for and what visitors will find." /></label><label className="file-field wide"><ImageIcon aria-hidden="true" /><span><b>Category artwork</b><small>{category?.imageUrl ? 'Current artwork will be kept unless you upload a replacement.' : 'Upload a storefront category image.'}</small>{category?.imageUrl && <img className="admin-editor-preview" src={category.imageUrl} alt="Current category artwork" />}</span><input type="file" accept="image/*" name="image" /></label><footer><button type="button" onClick={onClose}>Cancel</button><button className="admin-primary" type="submit"><Save aria-hidden="true" />{category ? 'Save category' : 'Create category'}</button></footer></form></section></div>;
+function CategoryEditor({category, media, onClose, onSave}: {category: Category | null; media: AdminMedia[]; onClose: () => void; onSave: (event: FormEvent<HTMLFormElement>) => void}) {
+  return <div className="admin-drawer-backdrop" role="presentation"><section className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="category-editor-title"><header><div><span>CATEGORY CATALOG</span><h2 id="category-editor-title">{category ? 'Edit category' : 'Add a new category'}</h2></div><button type="button" onClick={onClose} aria-label="Close category editor"><X aria-hidden="true" /></button></header><form className="template-editor-form" onSubmit={onSave}>
+    <label className="wide">Category name<input required name="name" defaultValue={category?.name} placeholder="e.g. Education & Courses" /></label>
+    <label className="wide">URL slug<input name="slug" defaultValue={category?.slug} placeholder="Generated from the category name" /><small>Lowercase letters, numbers and hyphens only.</small></label>
+    <label>Status<select name="status" defaultValue={category?.status || 'Active'}><option>Active</option><option>Hidden</option></select></label>
+    <label className="wide">Description<textarea required name="description" rows={6} defaultValue={category?.description} placeholder="Who this category is for and what visitors will find." /></label>
+    <MediaLibraryField key={`category-${category?.id || 'new'}-${category?.imageUrl || ''}`} media={media} name="imageUrl" label="Choose category artwork from Media" value={category?.imageUrl} />
+    <label className="file-field wide"><ImageIcon aria-hidden="true" /><span><b>Or upload new category artwork</b><small>{category?.imageUrl ? 'Uploading replaces the selected/current artwork.' : 'The upload will be stored in the media library.'}</small></span><input type="file" accept="image/*" name="image" /></label>
+    <footer><button type="button" onClick={onClose}>Cancel</button><button className="admin-primary" type="submit"><Save aria-hidden="true" />{category ? 'Save category' : 'Create category'}</button></footer>
+  </form></section></div>;
 }
 
-function CollectionEditor({collection, categories, onClose, onSave}: {collection: Collection | null; categories: Category[]; onClose: () => void; onSave: (event: FormEvent<HTMLFormElement>) => void}) {
-  return <div className="admin-drawer-backdrop" role="presentation"><section className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="collection-editor-title"><header><div><span>COLLECTION CATALOG</span><h2 id="collection-editor-title">{collection ? 'Edit collection' : 'Add a new collection'}</h2></div><button type="button" onClick={onClose} aria-label="Close collection editor"><X aria-hidden="true" /></button></header><form className="template-editor-form" onSubmit={onSave}><label className="wide">Collection name<input required name="name" defaultValue={collection?.name} placeholder="e.g. Summer Launch Kits" /></label><label>Status<select name="status" defaultValue={collection?.status || 'Draft'}><option>Draft</option><option>Published</option></select></label><label className="wide">Description<textarea required name="description" rows={6} defaultValue={collection?.description} placeholder="Explain the theme and purpose of this collection." /></label><label className="wide">Included categories<select className="admin-multi-select" multiple name="categoryIds" defaultValue={collection?.categoryIds || []} size={Math.min(Math.max(categories.length, 3), 6)}>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select><small>Use Ctrl or Cmd to select multiple categories. Leave empty to make the collection available across all categories.</small></label><label className="file-field wide"><ImageIcon aria-hidden="true" /><span><b>Collection artwork</b><small>{collection?.imageUrl ? 'Current artwork will be kept unless you upload a replacement.' : 'Upload a storefront collection image.'}</small>{collection?.imageUrl && <img className="admin-editor-preview" src={collection.imageUrl} alt="Current collection artwork" />}</span><input type="file" accept="image/*" name="image" /></label><footer><button type="button" onClick={onClose}>Cancel</button><button className="admin-primary" type="submit"><Save aria-hidden="true" />{collection ? 'Save collection' : 'Create collection'}</button></footer></form></section></div>;
+function CollectionEditor({collection, categories, media, onClose, onSave}: {collection: Collection | null; categories: Category[]; media: AdminMedia[]; onClose: () => void; onSave: (event: FormEvent<HTMLFormElement>) => void}) {
+  return <div className="admin-drawer-backdrop" role="presentation"><section className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="collection-editor-title"><header><div><span>COLLECTION CATALOG</span><h2 id="collection-editor-title">{collection ? 'Edit collection' : 'Add a new collection'}</h2></div><button type="button" onClick={onClose} aria-label="Close collection editor"><X aria-hidden="true" /></button></header><form className="template-editor-form" onSubmit={onSave}>
+    <label className="wide">Collection name<input required name="name" defaultValue={collection?.name} placeholder="e.g. Summer Launch Kits" /></label>
+    <label>Status<select name="status" defaultValue={collection?.status || 'Draft'}><option>Draft</option><option>Published</option></select></label>
+    <label className="wide">Description<textarea required name="description" rows={6} defaultValue={collection?.description} placeholder="Explain the theme and purpose of this collection." /></label>
+    <label className="wide">Included categories<select className="admin-multi-select" multiple name="categoryIds" defaultValue={collection?.categoryIds || []} size={Math.min(Math.max(categories.length, 3), 6)}>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select><small>Use Ctrl or Cmd to select multiple categories. Leave empty to make the collection available across all categories.</small></label>
+    <MediaLibraryField key={`collection-${collection?.id || 'new'}-${collection?.imageUrl || ''}`} media={media} name="imageUrl" label="Choose collection artwork from Media" value={collection?.imageUrl} />
+    <label className="file-field wide"><ImageIcon aria-hidden="true" /><span><b>Or upload new collection artwork</b><small>{collection?.imageUrl ? 'Uploading replaces the selected/current artwork.' : 'The upload will be stored in the media library.'}</small></span><input type="file" accept="image/*" name="image" /></label>
+    <footer><button type="button" onClick={onClose}>Cancel</button><button className="admin-primary" type="submit"><Save aria-hidden="true" />{collection ? 'Save collection' : 'Create collection'}</button></footer>
+  </form></section></div>;
 }
 
 function OrderDrawer({order, canManage, onClose, onUpdate}: {order: AdminOrder; canManage: boolean; onClose: () => void; onUpdate: (id: string, status: AdminOrderStatus) => void}) {
