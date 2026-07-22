@@ -11,7 +11,7 @@ export type AdminTeamMember = AdminSession & {
   id: string;
   loginId: string;
   temporaryPassword: string;
-  status: 'Active' | 'Invited';
+  status: 'Active' | 'Invited' | 'Suspended';
 };
 
 export const defaultAdminTeam: AdminTeamMember[] = [];

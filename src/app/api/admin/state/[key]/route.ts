@@ -1,7 +1,8 @@
 import {revalidatePath} from 'next/cache';
 import {NextResponse, type NextRequest} from 'next/server';
 import {getVerifiedAdmin} from '@/lib/admin-server';
-import {toAdminRole, toDatabaseRole, type AdminRole} from '@/lib/admin-auth';
+import {toAdminRole, type AdminRole} from '@/lib/admin-auth';
+import {toAdminMedia} from '@/lib/admin-media';
 import {getSupabaseAdminClient} from '@/lib/supabase/admin';
 
 const allowedKeys = new Set(['templates', 'categories', 'collections', 'media', 'orders', 'team', 'settings']);
@@ -20,34 +21,6 @@ function canRead(role: AdminRole, key: string) {
   if (role === 'Catalog manager') return ['templates', 'categories', 'collections', 'media'].includes(key);
   if (role === 'Payment reviewer' || role === 'Support') return key === 'orders';
   return false;
-}
-
-async function removeMissing(table: string, currentIds: string[], nextIds: string[]) {
-  const admin = getSupabaseAdminClient();
-  const missing = currentIds.filter(id => !nextIds.includes(id));
-  if (missing.length) {
-    // For categories, null out product references first to avoid FK constraint errors
-    if (table === 'akl_categories') {
-      const {error: updateError} = await admin.from('akl_products').update({category_id: null}).in('category_id', missing);
-      if (updateError) {
-        console.error(`Failed to null out category_id for products:`, updateError);
-        throw new Error(`Unable to delete categories: products reference them`);
-      }
-    }
-    // For collections, null out product references first to avoid FK constraint errors
-    if (table === 'akl_collections') {
-      const {error: updateError} = await admin.from('akl_products').update({collection_id: null}).in('collection_id', missing);
-      if (updateError) {
-        console.error(`Failed to null out collection_id for products:`, updateError);
-        throw new Error(`Unable to delete collections: products reference them`);
-      }
-    }
-    const {error} = await admin.from(table).delete().in('id', missing);
-    if (error) {
-      console.error(`Failed to delete from ${table}:`, error);
-      throw error;
-    }
-  }
 }
 
 export async function GET(_request: NextRequest, {params}: {params: Promise<{key: string}>}) {
@@ -93,7 +66,7 @@ export async function GET(_request: NextRequest, {params}: {params: Promise<{key
     if (key === 'media') {
       const {data, error} = await admin.from('akl_media_assets').select('*').order('created_at', {ascending: false});
       if (error) throw error;
-      return NextResponse.json({value: (data || []).map(row => ({id: row.id, name: row.name, type: row.asset_type, linkedTo: row.product_slug || 'Shared library', status: row.status, storagePath: row.storage_path, publicUrl: row.public_url || ''}))});
+      return NextResponse.json({value: (data || []).map(row => toAdminMedia(row))});
     }
 
     if (key === 'orders') {
@@ -119,7 +92,8 @@ export async function GET(_request: NextRequest, {params}: {params: Promise<{key
         const role = toAdminRole(profile.role);
         if (!role) return [];
         const email = emails.get(profile.id) || '';
-        return [{id: profile.id, name: profile.full_name || email, email, loginId: email, temporaryPassword: '', role, status: profile.status === 'active' ? 'Active' : 'Invited'}];
+        const status = profile.status === 'active' ? 'Active' : profile.status === 'suspended' ? 'Suspended' : 'Invited';
+        return [{id: profile.id, name: profile.full_name || email, email, loginId: email, temporaryPassword: '', role, status}];
       })});
     }
 
@@ -138,83 +112,30 @@ export async function PUT(request: NextRequest, {params}: {params: Promise<{key:
   const {key} = await params;
   if (!allowedKeys.has(key)) return NextResponse.json({error: 'Unknown admin data set.'}, {status: 404});
   if (!canWrite(adminUser.role, key)) return forbidden();
-  if (['templates', 'categories', 'collections', 'orders'].includes(key)) {
-    return NextResponse.json({error: 'Bulk catalog and order writes are disabled. Use the validated resource mutation endpoint.'}, {status: 405});
+  if (['templates', 'categories', 'collections', 'media', 'orders', 'team'].includes(key)) {
+    return NextResponse.json({error: 'Bulk writes are disabled. Use the validated resource mutation endpoint.'}, {status: 405});
   }
   const body = await request.json() as {value?: unknown};
   const admin = getSupabaseAdminClient();
 
   try {
-    if (key === 'templates') {
-      const value = Array.isArray(body.value) ? body.value as Record<string, unknown>[] : [];
-      const rows = value.map(item => ({
-        id: String(item.id), slug: String(item.slug), title: String(item.title), category_id: item.categoryId ? String(item.categoryId) : null,
-        collection_id: item.collectionId ? String(item.collectionId) : null, price: Number(item.price), mrp: Number(item.mrp),
-        layout_count: Number(item.layoutCount), description: String(item.description || ''), long_description: String(item.long || item.description || ''),
-        accent: String(item.accent || '#f0642f'), dark: String(item.dark || '#191917'), badge: String(item.badge || ''),
-        status: String(item.status), formats: Array.isArray(item.formats) ? item.formats : [], includes: Array.isArray(item.includes) ? item.includes : [],
-        cover_name: String(item.coverName || ''), delivery_name: String(item.deliveryName || ''),
-        cover_url: String(item.coverUrl || ''),
-      }));
-      const {data: current} = await admin.from('akl_products').select('id');
-      if (rows.length) { const {error} = await admin.from('akl_products').upsert(rows); if (error) throw error; }
-      await removeMissing('akl_products', (current || []).map(item => item.id), rows.map(item => item.id));
-      revalidatePath('/', 'layout');
-    } else if (key === 'categories') {
-      const value = Array.isArray(body.value) ? body.value as Record<string, unknown>[] : [];
-      const rows = value.map(item => ({id: String(item.id), slug: String(item.slug), name: String(item.name), description: String(item.description || ''), status: String(item.status), product_count: Number(item.productCount || 0), image_url: String(item.imageUrl || '')}));
-      const {data: current} = await admin.from('akl_categories').select('id');
-      if (rows.length) { const {error} = await admin.from('akl_categories').upsert(rows); if (error) throw error; }
-      await removeMissing('akl_categories', (current || []).map(item => item.id), rows.map(item => item.id));
-      revalidatePath('/', 'layout');
-    } else if (key === 'collections') {
-      const value = Array.isArray(body.value) ? body.value as Record<string, unknown>[] : [];
-      const rows = value.map(item => ({id: String(item.id), name: String(item.name), description: String(item.description || ''), status: String(item.status), category_ids: Array.isArray(item.categoryIds) ? item.categoryIds : [], image_url: String(item.imageUrl || '')}));
-      const {data: current} = await admin.from('akl_collections').select('id');
-      if (rows.length) { const {error} = await admin.from('akl_collections').upsert(rows); if (error) throw error; }
-      await removeMissing('akl_collections', (current || []).map(item => item.id), rows.map(item => item.id));
-      revalidatePath('/', 'layout');
-    } else if (key === 'media') {
-      const value = Array.isArray(body.value) ? body.value as Record<string, unknown>[] : [];
-      const rows = value.map(item => ({id: String(item.id), name: String(item.name), asset_type: String(item.type), product_slug: item.linkedTo && item.linkedTo !== 'Unassigned' && item.linkedTo !== 'Shared library' ? String(item.linkedTo) : null, storage_path: String(item.storagePath || ''), public_url: String(item.publicUrl || ''), status: String(item.status)}));
-      const {data: current} = await admin.from('akl_media_assets').select('id');
-      if (rows.length) { const {error} = await admin.from('akl_media_assets').upsert(rows); if (error) throw error; }
-      await removeMissing('akl_media_assets', (current || []).map(item => item.id), rows.map(item => item.id));
-    } else if (key === 'orders') {
-      return NextResponse.json({error: 'Bulk order writes are disabled. Use the authenticated order mutation endpoint.'}, {status: 405});
-    } else if (key === 'team') {
-      const value = Array.isArray(body.value) ? body.value as Record<string, unknown>[] : [];
-      const submittedIds: string[] = [];
-      for (const item of value) {
-        const email = String(item.email || '').trim().toLowerCase();
-        const role = toDatabaseRole(String(item.role) as AdminRole);
-        const status = item.status === 'Active' ? 'active' : 'invited';
-        const id = String(item.id || '');
-        if (/^[0-9a-f-]{36}$/i.test(id)) {
-          submittedIds.push(id);
-          const {error} = await admin.from('akl_profiles').update({full_name: String(item.name || ''), role, status}).eq('id', id);
-          if (error) throw error;
-        } else {
-          const password = String(item.temporaryPassword || '');
-          if (!email || password.length < 8) throw new Error('A valid email and temporary password are required for new staff.');
-          const {data: created, error} = await admin.auth.admin.createUser({email, password, email_confirm: true, app_metadata: {site: 'anykitlab', role}, user_metadata: {site: 'anykitlab', full_name: String(item.name || '')}});
-          if (error) throw error;
-          submittedIds.push(created.user.id);
-          const {error: profileError} = await admin.from('akl_profiles').upsert({id: created.user.id, full_name: String(item.name || ''), role, status});
-          if (profileError) throw profileError;
-        }
-      }
-      const {data: existing} = await admin.from('akl_profiles').select('id,role').neq('role', 'customer');
-      const removable = (existing || []).filter(profile => profile.role !== 'owner' && !submittedIds.includes(profile.id)).map(profile => profile.id);
-      if (removable.length) await admin.from('akl_profiles').update({status: 'suspended'}).in('id', removable);
-    } else if (key === 'settings') {
-      const item = (body.value || {}) as Record<string, unknown>;
-      const {error} = await admin.from('akl_site_settings').upsert({id: 'storefront', store_name: String(item.storeName || 'AnyKit Lab'), support_email: String(item.supportEmail || ''), upi_id: String(item.upiId || ''), verification_sla: String(item.verificationSla || ''), sender_name: String(item.senderName || ''), hero_image_1: String(item.heroImage1 || ''), hero_image_2: String(item.heroImage2 || ''), hero_image_3: String(item.heroImage3 || '')});
-      if (error) throw error;
-    }
+    const item = (body.value || {}) as Record<string, unknown>;
+    const {error} = await admin.from('akl_site_settings').upsert({
+      id: 'storefront',
+      store_name: String(item.storeName || 'AnyKit Lab'),
+      support_email: String(item.supportEmail || ''),
+      upi_id: String(item.upiId || ''),
+      verification_sla: String(item.verificationSla || ''),
+      sender_name: String(item.senderName || ''),
+      hero_image_1: String(item.heroImage1 || ''),
+      hero_image_2: String(item.heroImage2 || ''),
+      hero_image_3: String(item.heroImage3 || ''),
+    });
+    if (error) throw error;
+    revalidatePath('/', 'layout');
     return NextResponse.json({ok: true});
   } catch (error) {
-    console.error(`Admin ${key} write failed:`, error instanceof Error ? error.message : error);
-    return NextResponse.json({error: error instanceof Error ? error.message : 'Unable to save administrator data.'}, {status: 500});
+    console.error('Admin settings write failed:', error instanceof Error ? error.message : error);
+    return NextResponse.json({error: error instanceof Error ? error.message : 'Unable to save administrator settings.'}, {status: 500});
   }
 }
