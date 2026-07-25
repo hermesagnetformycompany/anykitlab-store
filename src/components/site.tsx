@@ -265,13 +265,18 @@ export function ProductArt({p, large = false, compact = false}: {p: Product; lar
     return (
       <div
         className={`reference-art product-image ${large ? 'large' : ''} ${compact ? 'compact' : ''}`}
-        style={{'--product-accent': p.accent, '--product-dark': p.dark} as React.CSSProperties}
+        style={{
+          '--product-accent': p.accent,
+          '--product-dark': p.dark,
+          width: '100%',
+          aspectRatio: '1 / 1',
+        } as React.CSSProperties}
       >
         <img
           src={p.coverUrl}
           alt={p.title}
           loading="lazy"
-          style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit'}}
+          style={{display: 'block', width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit'}}
         />
       </div>
     );

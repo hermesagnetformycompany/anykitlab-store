@@ -285,8 +285,30 @@
 
 /* Featured product grid */
 .featured-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
-.home-product { border-radius: 8px; }
-.home-product-image { aspect-ratio: 1; }
+.featured-grid .home-product {
+  border-radius: 8px;
+  aspect-ratio: auto;
+  display: flex;
+  flex-direction: column;
+}
+.featured-grid .home-product-image {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  flex: 0 0 auto;
+}
+.featured-grid .home-product-image .reference-art,
+.featured-grid .home-product-image .product-image {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1 / 1;
+}
+.featured-grid .home-product-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .home-product-copy { padding: 14px; }
 .home-product-copy h3 { font-size: 15px; min-height: 42px; line-height: 1.3; }
 .home-product-copy > span { font-size: 13px; margin-bottom: 6px; }
