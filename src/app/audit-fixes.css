@@ -292,9 +292,11 @@
   flex-direction: column;
 }
 .featured-grid .home-product-image {
-  width: 100%;
+  width: calc(100% - 20px);
   height: auto;
+  margin: 10px 10px 0;
   aspect-ratio: 1 / 1;
+  border-radius: 12px;
   flex: 0 0 auto;
 }
 .featured-grid .home-product-image .reference-art,
