@@ -276,6 +276,8 @@
 .placeholder-stack small { font-size: 9px; }
 .placeholder-stack b { font-size: 26px; }
 .placeholder-stack > span::after { font-size: 7px; }
+/* Real hero covers: image must bleed edge-to-edge inside the card (no inset padding). */
+.hero-product-covers > span { padding: 0 !important; }
 .hero-benefits span { font-size: 13px; }
 .hero-benefits svg { width: 20px; height: 20px; }
 
@@ -326,8 +328,8 @@
 
 /* Collection grid */
 .collection-grid { gap: 16px; }
-.collection-grid > a { height: auto; min-height: 120px; }
-.collection-grid > a > div { padding: 16px 0 12px 16px; }
+.collection-grid > a { height: auto; min-height: 120px; align-items: center; }
+.collection-grid > a > div:not(.collection-placeholder) { padding: 16px; display: flex; flex-direction: column; justify-content: center; }
 .collection-grid h3 { font-size: 18px; }
 .collection-grid p { font-size: 13px; line-height: 1.45; margin-bottom: 10px; }
 .collection-grid span { font-size: 13px; }
@@ -339,7 +341,8 @@
 .delivery-step h3 { font-size: 14px; margin-top: 18px; }
 .delivery-step p { font-size: 12px; line-height: 1.5; max-width: 140px; }
 .step-mark { width: 60px; height: 60px; }
-.step-mark > b { font-size: 11px; }
+/* Step number chips sit inside the circle instead of hanging below it into the title. */
+.step-mark > b { font-size: 11px; bottom: 5px !important; right: 7px; }
 .delivery-grid::before { top: 34px; }
 
 /* Value ribbon */
@@ -359,6 +362,24 @@
 .reference-home .faq details { padding: 12px 0; border-bottom: 1px solid var(--line); }
 .reference-home .faq summary { font-size: 15px; font-weight: 600; }
 .reference-home .faq details p { font-size: 14px; line-height: 1.6; padding: 8px 0; }
+/* FAQ rows: question text and + toggle get breathing room — no UA disclosure triangle,
+   padded away from the row border, + pushed to the row's right edge with a fixed gap. */
+.reference-home .faq details { padding: 14px 18px; }
+.reference-home .faq summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding-left: 2px;
+  list-style: none;
+}
+.reference-home .faq summary::-webkit-details-marker { display: none; }
+.reference-home .faq summary::marker { content: none; }
+.reference-home .faq summary span {
+  flex: none;
+  color: var(--orange);
+  font-weight: 700;
+}
 .reference-home .faq > a { font-size: 14px; }
 
 /* Footer */
